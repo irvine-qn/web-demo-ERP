@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumina Fashion - AI Powered</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        .product-img { height: 300px; object-fit: cover; }
+        .search-area { background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 15px; padding: 40px; text-align: center; }
+        #imagePreview { max-height: 200px; border-radius: 10px; display: none; margin: 15px auto; }
+        .nav-pills .nav-link.active { background-color: #212529; }
+        .nav-pills .nav-link { color: #212529; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-dark sticky-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold fs-4" href="/"><i class="bi bi-shop"></i> LUMINA</a>
+            <span class="text-white"><i class="bi bi-cart3 fs-4"></i></span>
+        </div>
+    </nav>
+
+    <div class="container mt-4 mb-5">
+        
+        <ul class="nav nav-pills justify-content-center mb-5 shadow-sm bg-white p-2 rounded-pill" id="pills-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active rounded-pill px-4" id="store-tab" data-bs-toggle="pill" data-bs-target="#store" type="button" role="tab"><i class="bi bi-bag-heart"></i> Cửa Hàng</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link rounded-pill px-4" id="ai-tab" data-bs-toggle="pill" data-bs-target="#ai-search" type="button" role="tab"><i class="bi bi-magic"></i> Tìm Theo Ảnh</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="pills-tabContent">
+            
+            <div class="tab-pane fade show active" id="store" role="tabpanel">
+                <h3 class="fw-bold mb-4 border-bottom pb-2">Tất Cả Sản Phẩm</h3>
+                <div class="row">
+                    {% for item in products %}
+                    <div class="col-md-3 col-sm-6 mb-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <img src="{{ item.image }}" class="card-img-top product-img" alt="{{ item.name }}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="badge bg-light text-dark border">{{ item.category }}</span>
+                                    <span class="badge bg-info text-dark">{{ item.color }} | {{ item.form }}</span>
+                                </div>
+                                <h6 class="card-title fw-bold">{{ item.name }}</h6>
+                                <p class="text-danger fw-bold fs-5">{{ item.price }}</p>
+                                <button class="btn btn-outline-dark btn-sm w-100"><i class="bi bi-cart-plus"></i> Chọn mua</button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="ai-search" role="tabpanel">
+                <div class="row justify-content-center">
+                    <div class="col-md-8">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-body p-5">
+                                <h4 class="fw-bold text-center mb-4">Tìm Quần Áo Bằng Hình Ảnh</h4>
+                                
+                                <form id="uploadForm">
+                                    <div class="search-area">
+                                        <i class="bi bi-cloud-arrow-up fs-1 text-secondary"></i>
+                                        <p class="mt-2 text-muted">Tải ảnh trang phục của bạn lên đây</p>
+                                        <input class="form-control mb-3" type="file" id="imageInput" accept="image/*" required>
+                                        <img id="imagePreview" src="#" alt="Preview">
+                                        <button type="submit" class="btn btn-dark btn-lg w-100 mt-3" id="searchBtn">Phân Tích AI</button>
+                                    </div>
+                                </form>
+
+                                <div id="aiResultsArea" class="mt-5" style="display: none;">
+                                    <div class="alert alert-success fw-bold" id="aiMessage"></div>
+                                    <div class="row" id="aiGrid"></div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const imagePreview = document.getElementById('imagePreview');
+
+        imageInput.onchange = () => {
+            const file = imageInput.files[0];
+            if (file) {
+                imagePreview.src = URL.createObjectURL(file);
+                imagePreview.style.display = 'block';
+            }
+        };
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('file', imageInput.files[0]);
+
+            const btn = document.getElementById('searchBtn');
+            const resultArea = document.getElementById('aiResultsArea');
+            const aiMessage = document.getElementById('aiMessage');
+            const aiGrid = document.getElementById('aiGrid');
+
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang bóc tách Màu & Form...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/search-image', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    resultArea.style.display = 'block';
+                    aiMessage.innerHTML = `<i class="bi bi-check2-circle"></i> ${data.message} - Dưới đây là các mẫu phù hợp:`;
+                    
+                    aiGrid.innerHTML = "";
+                    if (data.results.length === 0) {
+aiGrid.innerHTML = `<p class="text-center text-muted">Không tìm thấy sản phẩm nào khớp với màu/form này.</p>`;
+                    } else {
+                        data.results.forEach(item => {
+                            aiGrid.innerHTML += `
+                                <div class="col-md-6 mb-4">
+                                    <div class="card border-0 shadow-sm position-relative">
+                                        <span class="badge bg-danger position-absolute top-0 end-0 m-2">Độ khớp: ${item.match}</span>
+                                        <img src="${item.image}" class="card-img-top" style="height: 250px; object-fit: cover;">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold">${item.name}</h6>
+                                            <p class="mb-1 text-muted small">Màu: ${item.color} | Form: ${item.form}</p>
+                                            <p class="text-danger fw-bold">${item.price}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                }
+            } catch (error) {
+                alert("Lỗi kết nối đến Server AI!");
+            } finally {
+                btn.innerHTML = 'Phân Tích AI';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

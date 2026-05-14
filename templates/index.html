@@ -3,96 +3,332 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lumina Fashion - AI Powered</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <style>
-        .product-img { height: 300px; object-fit: cover; }
-        .search-area { background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 15px; padding: 40px; text-align: center; }
-        #imagePreview { max-height: 200px; border-radius: 10px; display: none; margin: 15px auto; }
-        .nav-pills .nav-link.active { background-color: #212529; }
-        .nav-pills .nav-link { color: #212529; font-weight: bold; }
-    </style>
+    <title>LUMINA – Thời Trang Cao Cấp | AI Powered Fashion</title>
+    <meta name="description" content="LUMINA - Khám phá bộ sưu tập thời trang cao cấp với công nghệ tìm kiếm AI thông minh. Áo, Quần, Váy đầm và Phụ kiện.">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body class="bg-light">
+<body>
 
-    <nav class="navbar navbar-dark bg-dark sticky-top shadow-sm">
-        <div class="container">
-            <a class="navbar-brand fw-bold fs-4" href="/"><i class="bi bi-shop"></i> LUMINA</a>
-            <span class="text-white"><i class="bi bi-cart3 fs-4"></i></span>
+    <!-- ========== NAVBAR ========== -->
+    <nav class="navbar" id="mainNavbar">
+        <div class="navbar-left">
+            <a href="/" class="navbar-logo">LUMINA</a>
+            <ul class="navbar-links">
+                <li><a href="#" class="active">Men</a></li>
+                <li><a href="#">Women</a></li>
+                <li><a href="#">Accessories</a></li>
+            </ul>
+        </div>
+        <div class="navbar-center">
+            <div class="search-box">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" placeholder="Tìm kiếm phong cách của bạn..." id="textSearch">
+                <button class="camera-btn" type="button" id="switchToAI" title="Tìm bằng hình ảnh">
+                    <i class="bi bi-camera"></i>
+                </button>
+            </div>
+        </div>
+        <div class="navbar-right">
+            <button class="icon-btn" title="Tài khoản"><i class="bi bi-person"></i></button>
+            <button class="icon-btn" title="Giỏ hàng">
+                <i class="bi bi-bag"></i>
+                <span class="cart-badge">0</span>
+            </button>
         </div>
     </nav>
 
-    <div class="container mt-4 mb-5">
-        
-        <ul class="nav nav-pills justify-content-center mb-5 shadow-sm bg-white p-2 rounded-pill" id="pills-tab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active rounded-pill px-4" id="store-tab" data-bs-toggle="pill" data-bs-target="#store" type="button" role="tab"><i class="bi bi-bag-heart"></i> Cửa Hàng</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link rounded-pill px-4" id="ai-tab" data-bs-toggle="pill" data-bs-target="#ai-search" type="button" role="tab"><i class="bi bi-magic"></i> Tìm Theo Ảnh</button>
-            </li>
-        </ul>
+    <!-- ========== TAB NAV ========== -->
+    <div class="tab-nav" id="tabNav">
+        <button class="tab-btn active" data-tab="store" id="storeTabBtn">
+            <i class="bi bi-bag-heart"></i> Cửa Hàng
+        </button>
+        <button class="tab-btn" data-tab="ai" id="aiTabBtn">
+            <i class="bi bi-magic"></i> Tìm Theo Ảnh AI
+        </button>
+    </div>
 
-        <div class="tab-content" id="pills-tabContent">
-            
-            <div class="tab-pane fade show active" id="store" role="tabpanel">
-                <h3 class="fw-bold mb-4 border-bottom pb-2">Tất Cả Sản Phẩm</h3>
-                <div class="row">
+    <!-- ============================================================ -->
+    <!-- TAB 1: STORE -->
+    <!-- ============================================================ -->
+    <div id="storeSection">
+        <div class="breadcrumb-bar">
+            <a href="/">Trang Chủ</a>
+            <span>›</span>
+            <strong>Tất Cả Sản Phẩm</strong>
+        </div>
+
+        <h1 class="page-title">Tất Cả Sản Phẩm</h1>
+
+        <div class="main-content">
+            <!-- SIDEBAR -->
+            <aside class="sidebar" id="sidebarFilters">
+                <div class="filter-section">
+                    <div class="filter-title">Danh Mục</div>
+                    <ul class="filter-list" id="categoryFilter">
+                        <li class="active" data-cat="all">Tất Cả</li>
+                        <li data-cat="Áo">Áo Sơ Mi</li>
+                        <li data-cat="Quần">Quần Âu</li>
+                        <li data-cat="Váy">Váy Đầm</li>
+                    </ul>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Kích Thước</div>
+                    <div class="size-options">
+                        <button class="size-btn" data-size="XS">XS</button>
+                        <button class="size-btn active" data-size="S">S</button>
+                        <button class="size-btn" data-size="M">M</button>
+                        <button class="size-btn" data-size="L">L</button>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Màu Sắc</div>
+                    <div class="color-options" id="colorFilter">
+                        <div class="color-swatch active" style="background:#1a1a1a" data-color="Đen" title="Đen"></div>
+                        <div class="color-swatch" style="background:#d4a574" data-color="Nâu" title="Nâu"></div>
+                        <div class="color-swatch" style="background:#e8e4de" data-color="Trắng" title="Trắng"></div>
+                        <div class="color-swatch" style="background:#6ba3be" data-color="Xanh dương" title="Xanh dương"></div>
+                        <div class="color-swatch" style="background:#c94c4c" data-color="Đỏ" title="Đỏ"></div>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <div class="filter-title">Khoảng Giá</div>
+                    <div class="price-range">
+                        <input type="range" class="price-slider" min="0" max="10000000" value="5000000" id="priceSlider">
+                        <div class="price-labels">
+                            <span>0đ</span>
+                            <span>10,000,000đ</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- PRODUCTS -->
+            <div class="products-area">
+                <div class="products-header">
+                    <div class="products-count">Đang hiển thị <strong>{{ products|length }}</strong> sản phẩm</div>
+                    <div class="sort-select">
+                        <label for="sortBy">Sắp xếp theo:</label>
+                        <select id="sortBy">
+                            <option value="newest">Mới Nhất</option>
+                            <option value="price-asc">Giá Tăng Dần</option>
+                            <option value="price-desc">Giá Giảm Dần</option>
+                            <option value="name">Tên A-Z</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="product-grid" id="productGrid">
                     {% for item in products %}
-                    <div class="col-md-3 col-sm-6 mb-4">
-                        <div class="card h-100 border-0 shadow-sm">
-                            <img src="{{ item.image }}" class="card-img-top product-img" alt="{{ item.name }}">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span class="badge bg-light text-dark border">{{ item.category }}</span>
-                                    <span class="badge bg-info text-dark">{{ item.color }} | {{ item.form }}</span>
-                                </div>
-                                <h6 class="card-title fw-bold">{{ item.name }}</h6>
-                                <p class="text-danger fw-bold fs-5">{{ item.price }}</p>
-                                <button class="btn btn-outline-dark btn-sm w-100"><i class="bi bi-cart-plus"></i> Chọn mua</button>
+                    <div class="product-card" data-category="{{ item.category }}" data-color="{{ item.color }}">
+                        <img src="{{ item.image }}" alt="{{ item.name }}" class="product-card-img" loading="lazy">
+                        <div class="product-card-info">
+                            <div class="product-category">{{ item.category }}</div>
+                            <div class="product-name">{{ item.name }}</div>
+                            <div class="product-price">{{ item.price }}</div>
+                            <div class="product-colors">
+                                <div class="product-color-dot" style="background: #1a1a1a;"></div>
+                                {% if item.color == "Trắng" %}
+                                <div class="product-color-dot" style="background: #e8e4de;"></div>
+                                {% elif item.color == "Xanh dương" %}
+                                <div class="product-color-dot" style="background: #6ba3be;"></div>
+                                {% elif item.color == "Đỏ" %}
+                                <div class="product-color-dot" style="background: #c94c4c;"></div>
+                                {% elif item.color == "Nâu" %}
+                                <div class="product-color-dot" style="background: #d4a574;"></div>
+                                {% elif item.color == "Vàng" %}
+                                <div class="product-color-dot" style="background: #dbb85c;"></div>
+                                {% elif item.color == "Xám" %}
+                                <div class="product-color-dot" style="background: #999;"></div>
+                                {% elif item.color == "Xanh lá" %}
+                                <div class="product-color-dot" style="background: #6b9e6b;"></div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
-            </div>
 
-            <div class="tab-pane fade" id="ai-search" role="tabpanel">
-                <div class="row justify-content-center">
-                    <div class="col-md-8">
-                        <div class="card shadow-sm border-0">
-                            <div class="card-body p-5">
-                                <h4 class="fw-bold text-center mb-4">Tìm Quần Áo Bằng Hình Ảnh</h4>
-                                
-                                <form id="uploadForm">
-                                    <div class="search-area">
-                                        <i class="bi bi-cloud-arrow-up fs-1 text-secondary"></i>
-                                        <p class="mt-2 text-muted">Tải ảnh trang phục của bạn lên đây</p>
-                                        <input class="form-control mb-3" type="file" id="imageInput" accept="image/*" required>
-                                        <img id="imagePreview" src="#" alt="Preview">
-                                        <button type="submit" class="btn btn-dark btn-lg w-100 mt-3" id="searchBtn">Phân Tích AI</button>
-                                    </div>
-                                </form>
-
-                                <div id="aiResultsArea" class="mt-5" style="display: none;">
-                                    <div class="alert alert-success fw-bold" id="aiMessage"></div>
-                                    <div class="row" id="aiGrid"></div>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
+                <!-- PAGINATION -->
+                <div class="pagination" id="pagination">
+                    <a href="#" class="arrow">← Trước</a>
+                    <a href="#" class="active-page">1</a>
+                    <a href="#">2</a>
+                    <a href="#">3</a>
+                    <span>...</span>
+                    <a href="#">8</a>
+                    <a href="#" class="arrow">Sau →</a>
                 </div>
             </div>
-
         </div>
     </div>
 
+    <!-- ============================================================ -->
+    <!-- TAB 2: AI SEARCH -->
+    <!-- ============================================================ -->
+    <div class="ai-search-section" id="aiSection">
+        <div class="ai-hero">
+            <h1>Tìm Kiếm Bằng Hình Ảnh</h1>
+            <p>Khám phá phong cách bạn yêu thích. Chỉ cần tải ảnh lên hoặc dán URL, AI của Lumina sẽ tìm những sản phẩm tương tự cho bạn ngay tức thì.</p>
+        </div>
+
+        <form id="uploadForm">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon"><i class="bi bi-image"></i></div>
+                <p>Kéo thả ảnh hoặc chọn từ tệp tin</p>
+                <p class="sub-text">Tải ảnh trang phục của bạn để AI tìm kiếm sản phẩm tương tự</p>
+                <img id="imagePreview" src="#" alt="Preview">
+                <div class="upload-controls">
+                    <label class="file-input-label" for="imageInput">Chọn ảnh để tải lên</label>
+                    <input type="file" id="imageInput" accept="image/*" required style="display:none">
+                    <span class="or-text">hoặc</span>
+                    <button type="button" class="paste-btn">Dán Ảnh</button>
+                </div>
+            </div>
+            <button type="submit" class="analyze-btn" id="searchBtn">
+                <i class="bi bi-stars"></i>&nbsp; PHÂN TÍCH AI
+            </button>
+        </form>
+
+        <!-- AI Results -->
+        <div class="ai-results" id="aiResultsArea">
+            <div class="ai-results-msg" id="aiMessage"></div>
+            <div class="ai-results-grid" id="aiGrid"></div>
+        </div>
+
+        <!-- How it works -->
+        <div class="how-it-works">
+            <h2>Cách Hoạt Động</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+                    <h3>1. Tải Ảnh</h3>
+                    <p>Tải lên ảnh trang phục hoặc phong cách bạn yêu thích từ bất kỳ nguồn nào.</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon"><i class="bi bi-cpu"></i></div>
+                    <h3>2. Phân Tích Thông Minh</h3>
+                    <p>AI sẽ nhận diện màu sắc, form dáng và phong cách từ bức ảnh của bạn.</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon"><i class="bi bi-bag-check"></i></div>
+                    <h3>3. Mua Sắm Ngay</h3>
+                    <p>Nhận kết quả sản phẩm tương tự từ cửa hàng và mua sắm ngay lập tức.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="site-footer" id="siteFooter">
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <h3>LUMINA</h3>
+                <p>Định nghĩa lại sự sang trọng thông qua sự tối giản và nghệ thuật ánh sáng. Mang đến những thiết kế tinh xảo cho tủ đồ hiện đại của bạn.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Mua Sắm</h4>
+                <ul>
+                    <li><a href="#">Bộ Sưu Tập Mới</a></li>
+                    <li><a href="#">Sản Phẩm Nam</a></li>
+                    <li><a href="#">Sản Phẩm Nữ</a></li>
+                    <li><a href="#">Phụ Kiện</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Hỗ Trợ</h4>
+                <ul>
+                    <li><a href="#">Chăm Sóc Khách Hàng</a></li>
+                    <li><a href="#">Vận Chuyển & Đổi Trả</a></li>
+                    <li><a href="#">Hướng Dẫn Chọn Size</a></li>
+                    <li><a href="#">Liên Hệ</a></li>
+                </ul>
+            </div>
+            <div class="footer-col footer-newsletter">
+                <h4>Bản Tin</h4>
+                <p>Đăng ký để nhận thông báo về bộ sưu tập mới nhất.</p>
+                <div class="newsletter-form">
+                    <input type="email" placeholder="Email của bạn" id="newsletterEmail">
+                    <button type="button">GỬI</button>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2024 LUMINA. All rights reserved.</span>
+            <div class="footer-bottom-links">
+                <a href="#">Support</a>
+                <a href="#">Privacy</a>
+                <a href="#">Terms</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ========== JAVASCRIPT ========== -->
     <script>
+        // ---- Tab Switching ----
+        const storeSection = document.getElementById('storeSection');
+        const aiSection = document.getElementById('aiSection');
+        const storeTabBtn = document.getElementById('storeTabBtn');
+        const aiTabBtn = document.getElementById('aiTabBtn');
+        const switchToAI = document.getElementById('switchToAI');
+
+        function showTab(tab) {
+            if (tab === 'store') {
+                storeSection.style.display = 'block';
+                aiSection.classList.remove('active');
+                storeTabBtn.classList.add('active');
+                aiTabBtn.classList.remove('active');
+            } else {
+                storeSection.style.display = 'none';
+                aiSection.classList.add('active');
+                aiTabBtn.classList.add('active');
+                storeTabBtn.classList.remove('active');
+            }
+        }
+
+        storeTabBtn.addEventListener('click', () => showTab('store'));
+        aiTabBtn.addEventListener('click', () => showTab('ai'));
+        switchToAI.addEventListener('click', () => showTab('ai'));
+
+        // ---- Category Filter ----
+        document.querySelectorAll('#categoryFilter li').forEach(li => {
+            li.addEventListener('click', () => {
+                document.querySelectorAll('#categoryFilter li').forEach(l => l.classList.remove('active'));
+                li.classList.add('active');
+                const cat = li.dataset.cat;
+                document.querySelectorAll('.product-card').forEach(card => {
+                    if (cat === 'all' || card.dataset.category === cat) {
+                        card.style.display = '';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // ---- Size Button Toggle ----
+        document.querySelectorAll('.size-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        // ---- Color Swatch Toggle ----
+        document.querySelectorAll('.color-swatch').forEach(sw => {
+            sw.addEventListener('click', () => {
+                document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+                sw.classList.add('active');
+            });
+        });
+
+        // ---- Image Upload Preview ----
         const imageInput = document.getElementById('imageInput');
         const imagePreview = document.getElementById('imagePreview');
+        const uploadArea = document.getElementById('uploadArea');
 
         imageInput.onchange = () => {
             const file = imageInput.files[0];
@@ -102,6 +338,23 @@
             }
         };
 
+        // Drag & Drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                imageInput.files = e.dataTransfer.files;
+                imagePreview.src = URL.createObjectURL(e.dataTransfer.files[0]);
+                imagePreview.style.display = 'block';
+            }
+        });
+
+        // ---- AI Search Submit ----
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData();
@@ -112,7 +365,7 @@
             const aiMessage = document.getElementById('aiMessage');
             const aiGrid = document.getElementById('aiGrid');
 
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang bóc tách Màu & Form...';
+            btn.innerHTML = '<span class="spinner-border-sm"></span>&nbsp; Đang phân tích Màu & Form...';
             btn.disabled = true;
 
             try {
@@ -120,34 +373,34 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    resultArea.style.display = 'block';
-                    aiMessage.innerHTML = `<i class="bi bi-check2-circle"></i> ${data.message} - Dưới đây là các mẫu phù hợp:`;
-                    
+                    resultArea.classList.add('show');
+                    aiMessage.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${data.message} — Dưới đây là các mẫu phù hợp:`;
+
                     aiGrid.innerHTML = "";
                     if (data.results.length === 0) {
-aiGrid.innerHTML = `<p class="text-center text-muted">Không tìm thấy sản phẩm nào khớp với màu/form này.</p>`;
+                        aiGrid.innerHTML = `<p style="text-align:center;color:#6b6b6b;grid-column:1/-1;">Không tìm thấy sản phẩm nào khớp.</p>`;
                     } else {
                         data.results.forEach(item => {
                             aiGrid.innerHTML += `
-                                <div class="col-md-6 mb-4">
-                                    <div class="card border-0 shadow-sm position-relative">
-                                        <span class="badge bg-danger position-absolute top-0 end-0 m-2">Độ khớp: ${item.match}</span>
-                                        <img src="${item.image}" class="card-img-top" style="height: 250px; object-fit: cover;">
-                                        <div class="card-body">
-                                            <h6 class="fw-bold">${item.name}</h6>
-                                            <p class="mb-1 text-muted small">Màu: ${item.color} | Form: ${item.form}</p>
-                                            <p class="text-danger fw-bold">${item.price}</p>
-                                        </div>
+                                <div class="ai-result-card">
+                                    <span class="ai-match-badge">Khớp ${item.match}</span>
+                                    <img src="${item.image}" alt="${item.name}">
+                                    <div class="ai-result-info">
+                                        <h4>${item.name}</h4>
+                                        <div class="meta">Màu: ${item.color} · Form: ${item.form}</div>
+                                        <div class="price">${item.price}</div>
                                     </div>
                                 </div>
                             `;
                         });
                     }
+
+                    resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             } catch (error) {
                 alert("Lỗi kết nối đến Server AI!");
             } finally {
-                btn.innerHTML = 'Phân Tích AI';
+                btn.innerHTML = '<i class="bi bi-stars"></i>&nbsp; PHÂN TÍCH AI';
                 btn.disabled = false;
             }
         });

@@ -26,7 +26,7 @@ nghiệm khách hàng và quản lý kho hàng thông minh dựa trên đặc tr
   - Backend: FastAPI (Python) - Hiệu năng cao, xử lý bất đồng bộ.
   - AI/Deep Learning: PyTorch, Torchvision.
   - Vector Search: FAISS (Facebook AI Similarity Search).
-  - Image Processing: OpenCV, Pillow (PIL).
+  - Image Processing: ResNet50, Pillow (PIL).
   - Frontend: HTML5, CSS3 (Lumina Design System), JavaScript (Vanilla JS).
   - Database: CSV (Lưu trữ metadata sản phẩm) & .index (Lưu trữ vector AI).
 

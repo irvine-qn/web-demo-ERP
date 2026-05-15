@@ -9,11 +9,10 @@ Base = declarative_base()
 
 class Product(Base):
     __tablename__ = "products"
-
+#id,name,category,price,image_url
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)       # Tên quần/áo
     category = Column(String)               # Danh mục (Áo thun, Váy, Quần jean...)
-    description = Column(String)            # Mô tả chất liệu, form dáng
     price = Column(Float)                   # Giá tiền
     image_url = Column(String)              # Đường dẫn ảnh mẫu
 

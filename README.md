@@ -128,5 +128,5 @@ py -m uvicorn main:app --reload
 
 ---
 *Project Name: Lumina Fashion ERP Search System*
-*Author: Irvine*
+
 *Topic: Utilizing Image Processing Model into ERP Systems.*

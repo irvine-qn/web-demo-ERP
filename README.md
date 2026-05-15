@@ -73,19 +73,27 @@ WEB DEMO ERP/
 Yêu cầu Python 3.9 trở lên.
 
 # Clone dự án
+```
 git clone https://github.com/irvine-qn/web-demo-ERP
 cd fashion-erp-ai
+```
 
 # Tạo môi trường ảo
+```
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
 
 # Cài đặt thư viện
+```
 pip install -r requirements.txt
+```
 
-* Cài thêm những nội dung sau nếu `pip install -r requirements.txt` không thể cài đặt hết được:
+* Cài thêm những nội dung sau nếu lệnh ```pip install -r requirements.txt``` không thể cài đặt hết được:
+```
 pip install torch torchvision
 pip install faiss-cpu
+```
 
 # 2. Chuẩn bị dữ liệu AI (Quan trọng)
 
@@ -95,15 +103,16 @@ phẩm:
 1.  Đảm bảo ảnh sản phẩm đã nằm trong thư mục datasets/.
 2.  Đảm bảo file models/fashion_resnet50.pth đã sẵn sàng.
 3.  Chạy script tạo index:
-
+```
 python load_dataset.py
+```
 
 # 3. Khởi chạy ứng dụng
 
 - Chạy server FastAPI bằng Uvicorn:
-
+```
 py -m uvicorn main:app --reload
-
+```
 - Truy cập ứng dụng tại: http://127.0.0.1:8000
 
 ### Hướng dẫn sử dụng (Usage)

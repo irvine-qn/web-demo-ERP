@@ -306,10 +306,11 @@ def _rank_similar_products(image, top_k=9):
         item["match"] = f"{int(round(max(1, min(99, final_score * 100))))}%"
         scored.append(item)
     
+    # Sắp xếp giảm dần theo match_score (tỉ lệ khớp), nếu bằng thì ưu tiên priority, shape_score, color_score
     scored.sort(
         key=lambda x: (
-            x["priority"],
             x["match_score"],
+            x["priority"],
             x["shape_score"],
             x["color_score"],
         ),

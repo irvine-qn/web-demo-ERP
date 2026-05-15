@@ -7,6 +7,7 @@ Các lỗi cần cập nhật:
 # Lỗi UI
 
 # Thiếu chức năng
+- Thiếu thêm vào giỏ hàng nhưng mà chưa cần thiết lắm
 
 # câu hỏi bổ sung
 - Đã finetune model như thế nào? cách hoạt động của nó ra làm sao?

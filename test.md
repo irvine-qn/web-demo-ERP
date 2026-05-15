@@ -13,6 +13,9 @@ Các lỗi cần cập nhật:
 - Đã finetune model như thế nào? cách hoạt động của nó ra làm sao?
 - Vì sao lại sử dụng ResNet50 thay vì các module khác
 
+# Note
+- nếu như lỗi sửa chưa được thì sẽ ghi thêm là website làm về hướng tìm kiếm những sản phẩm cho khách hàng và show ra những mẫu áo khớp vibe mà người dùng có thể mua thay thế.
+
 # test case
 ảnh không phải quần áo
 ảnh là quần áo

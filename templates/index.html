@@ -392,78 +392,116 @@
       aiTabBtn.addEventListener("click", () => showTab("ai"));
       switchToAI.addEventListener("click", () => showTab("ai"));
 
-
       // ---- Product Filtering (Search, Category, Color, Price, Sort) ----
-      const productGrid = document.getElementById('productGrid');
-      const searchInput = document.getElementById('textSearch');
-      const categoryFilter = document.getElementById('categoryFilter');
-      const colorFilter = document.getElementById('colorFilter');
-      const priceSlider = document.getElementById('priceSlider');
-      const sortBy = document.getElementById('sortBy');
+      const productGrid = document.getElementById("productGrid");
+      const searchInput = document.getElementById("textSearch");
+      const categoryFilter = document.getElementById("categoryFilter");
+      const colorFilter = document.getElementById("colorFilter");
+      const priceSlider = document.getElementById("priceSlider");
+      const sortBy = document.getElementById("sortBy");
 
       function normalize(str) {
-        return str ? str.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '') : '';
+        return str
+          ? str
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/\p{Diacritic}/gu, "")
+          : "";
       }
 
       function filterProducts() {
         const searchVal = normalize(searchInput.value);
-        const activeCat = categoryFilter.querySelector('.active').dataset.cat;
-        const activeColor = colorFilter.querySelector('.active')?.dataset.color || 'all';
+        const activeCat = categoryFilter.querySelector(".active").dataset.cat;
+        const activeColor =
+          colorFilter.querySelector(".active")?.dataset.color || "all";
         const maxPrice = parseInt(priceSlider.value, 10);
         const sortVal = sortBy.value;
 
         let products = Array.from(productGrid.children);
-        products.forEach(card => {
+        products.forEach((card) => {
           let show = true;
           // Search by name
-          if (searchVal && !normalize(card.dataset.name).includes(searchVal)) show = false;
+          if (searchVal && !normalize(card.dataset.name).includes(searchVal))
+            show = false;
           // Category
-          if (activeCat !== 'all' && card.dataset.category !== activeCat) show = false;
+          if (activeCat !== "all" && card.dataset.category !== activeCat)
+            show = false;
           // Color
-          if (activeColor !== 'all' && card.dataset.color !== activeColor) show = false;
+          if (activeColor !== "all" && card.dataset.color !== activeColor)
+            show = false;
           // Price
-          const price = parseInt(card.querySelector('.product-price').textContent.replace(/[^\d]/g, ''));
+          const price = parseInt(
+            card
+              .querySelector(".product-price")
+              .textContent.replace(/[^\d]/g, ""),
+          );
           if (price > maxPrice) show = false;
-          card.style.display = show ? '' : 'none';
+          card.style.display = show ? "" : "none";
         });
 
         // Sort
-        let visible = products.filter(card => card.style.display !== 'none');
+        let visible = products.filter((card) => card.style.display !== "none");
         visible.sort((a, b) => {
-          if (sortVal === 'price-asc') {
-            return parseInt(a.querySelector('.product-price').textContent.replace(/[^\d]/g, '')) - parseInt(b.querySelector('.product-price').textContent.replace(/[^\d]/g, ''));
-          } else if (sortVal === 'price-desc') {
-            return parseInt(b.querySelector('.product-price').textContent.replace(/[^\d]/g, '')) - parseInt(a.querySelector('.product-price').textContent.replace(/[^\d]/g, ''));
-          } else if (sortVal === 'name') {
+          if (sortVal === "price-asc") {
+            return (
+              parseInt(
+                a
+                  .querySelector(".product-price")
+                  .textContent.replace(/[^\d]/g, ""),
+              ) -
+              parseInt(
+                b
+                  .querySelector(".product-price")
+                  .textContent.replace(/[^\d]/g, ""),
+              )
+            );
+          } else if (sortVal === "price-desc") {
+            return (
+              parseInt(
+                b
+                  .querySelector(".product-price")
+                  .textContent.replace(/[^\d]/g, ""),
+              ) -
+              parseInt(
+                a
+                  .querySelector(".product-price")
+                  .textContent.replace(/[^\d]/g, ""),
+              )
+            );
+          } else if (sortVal === "name") {
             return a.dataset.name.localeCompare(b.dataset.name);
           }
           return 0;
         });
-        visible.forEach(card => productGrid.appendChild(card));
+        visible.forEach((card) => productGrid.appendChild(card));
       }
 
       // Category
-      categoryFilter.querySelectorAll('li').forEach(li => {
-        li.addEventListener('click', () => {
-          categoryFilter.querySelectorAll('li').forEach(l => l.classList.remove('active'));
-          li.classList.add('active');
+      categoryFilter.querySelectorAll("li").forEach((li) => {
+        li.addEventListener("click", () => {
+          categoryFilter
+            .querySelectorAll("li")
+            .forEach((l) => l.classList.remove("active"));
+          li.classList.add("active");
           filterProducts();
         });
       });
       // Color
-      colorFilter.querySelectorAll('.color-swatch').forEach(swatch => {
-        swatch.addEventListener('click', () => {
-          colorFilter.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-          swatch.classList.add('active');
+      colorFilter.querySelectorAll(".color-swatch").forEach((swatch) => {
+        swatch.addEventListener("click", () => {
+          colorFilter
+            .querySelectorAll(".color-swatch")
+            .forEach((s) => s.classList.remove("active"));
+          swatch.classList.add("active");
           filterProducts();
         });
       });
       // Price
-      priceSlider.addEventListener('input', filterProducts);
+      priceSlider.addEventListener("input", filterProducts);
       // Sort
-      sortBy.addEventListener('change', filterProducts);
+      sortBy.addEventListener("change", filterProducts);
       // Search
-      searchInput.addEventListener('input', filterProducts);
+      searchInput.addEventListener("input", filterProducts);
 
       // Initial filter
       filterProducts();

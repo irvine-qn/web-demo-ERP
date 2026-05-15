@@ -121,8 +121,7 @@ py -m uvicorn main:app --reload
     trang ở dưới cùng.
 2.  Tìm kiếm bằng hình ảnh:
       - Chuyển sang tab AI Image Search.
-      - Kéo một ảnh từ máy tính hoặc dán (Ctrl+V) ảnh một chiếc áo/quần vào vùng
-        upload.
+      - Kéo một ảnh từ máy tính hoặc dán (Ctrl+V) ảnh một chiếc áo/quần vào vùng upload.
       - Bấm "ANALYZE WITH AI".
       - Hệ thống sẽ trả về Top 9 sản phẩm giống nhất kèm độ khớp (Match %).
 

@@ -107,7 +107,27 @@
         <div class="products-area">
           <div class="products-header">
             <div class="products-count">
-              Showing <strong>{{ products|length }}</strong> products
+              Showing <strong>{{ products|length }}</strong> of
+              <strong>480</strong> products
+            </div>
+            <!-- PAGINATION -->
+            <div class="pagination-container">
+              {% if current_page > 1 %}
+              <a href="/?page={{ current_page - 1 }}" class="pagination-btn"
+                >← Prev</a
+              >
+              {% endif %} {% for p in range(1, total_pages + 1) %} {% if p >=
+              current_page - 2 and p <= current_page + 2 %}
+              <a
+                href="/?page={{ p }}"
+                class="pagination-btn {{ 'active' if p == current_page else '' }}"
+                >{{ p }}</a
+              >
+              {% endif %} {% endfor %} {% if current_page < total_pages %}
+              <a href="/?page={{ current_page + 1 }}" class="pagination-btn"
+                >Next →</a
+              >
+              {% endif %}
             </div>
             <div class="sort-select">
               <label for="sortBy">Sort by:</label>
@@ -141,17 +161,6 @@
             </div>
             {% endfor %}
           </div>
-
-          <!-- PAGINATION -->
-          <div class="pagination" id="pagination">
-            <a href="#" class="arrow">← Prev</a>
-            <a href="#" class="active-page">1</a>
-            <a href="#">2</a>
-            <a href="#">3</a>
-            <span>...</span>
-            <a href="#">8</a>
-            <a href="#" class="arrow">Next →</a>
-          </div>
         </div>
       </div>
     </div>
@@ -171,9 +180,9 @@
       <form id="uploadForm">
         <div class="upload-area" id="uploadArea">
           <div class="upload-icon"><i class="bi bi-image"></i></div>
-          <p>Drag & drop or select a file</p>
+          <p>Drag & drop, paste, or select a file</p>
           <p class="sub-text">
-            Upload your outfit image to let AI find similar products
+            Upload, paste, or drop your outfit image to find similar products
           </p>
           <img id="imagePreview" src="#" alt="Preview" />
           <div class="upload-controls">
@@ -188,7 +197,9 @@
               style="display: none"
             />
             <span class="or-text">or</span>
-            <button type="button" class="paste-btn">Paste Image</button>
+            <button type="button" class="paste-btn" id="pasteImageBtn">
+              Paste Image
+            </button>
           </div>
         </div>
         <button type="submit" class="analyze-btn" id="searchBtn">
@@ -402,14 +413,28 @@
       const imageInput = document.getElementById("imageInput");
       const imagePreview = document.getElementById("imagePreview");
       const uploadArea = document.getElementById("uploadArea");
+      const pasteImageBtn = document.getElementById("pasteImageBtn");
+      let selectedImageFile = null;
 
-      imageInput.onchange = () => {
-        const file = imageInput.files[0];
-        if (file) {
-          imagePreview.src = URL.createObjectURL(file);
-          imagePreview.style.display = "block";
-        }
-      };
+      function setSelectedImage(file) {
+        if (!file || !file.type.startsWith("image/")) return;
+        selectedImageFile = file;
+
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        imageInput.files = transfer.files;
+
+        imagePreview.src = URL.createObjectURL(file);
+        imagePreview.style.display = "block";
+        showTab("ai");
+      }
+
+      imageInput.onchange = () => setSelectedImage(imageInput.files[0]);
+
+      uploadArea.addEventListener("click", (e) => {
+        if (e.target.closest("button, label, input")) return;
+        imageInput.click();
+      });
 
       // Drag & Drop
       uploadArea.addEventListener("dragover", (e) => {
@@ -422,10 +447,52 @@
       uploadArea.addEventListener("drop", (e) => {
         e.preventDefault();
         uploadArea.classList.remove("dragover");
-        if (e.dataTransfer.files.length) {
-          imageInput.files = e.dataTransfer.files;
-          imagePreview.src = URL.createObjectURL(e.dataTransfer.files[0]);
-          imagePreview.style.display = "block";
+        const imageFile = Array.from(e.dataTransfer.files).find((file) =>
+          file.type.startsWith("image/"),
+        );
+        setSelectedImage(imageFile);
+      });
+
+      async function pasteImageFromClipboard() {
+        try {
+          if (navigator.clipboard && navigator.clipboard.read) {
+            const items = await navigator.clipboard.read();
+            for (const item of items) {
+              const imageType = item.types.find((type) =>
+                type.startsWith("image/"),
+              );
+              if (imageType) {
+                const blob = await item.getType(imageType);
+                setSelectedImage(
+                  new File(
+                    [blob],
+                    `pasted-image.${imageType.split("/")[1] || "png"}`,
+                    {
+                      type: imageType,
+                    },
+                  ),
+                );
+                return;
+              }
+            }
+          }
+          alert("Clipboard chưa có ảnh. Hãy copy một ảnh rồi bấm Paste Image.");
+        } catch (error) {
+          alert(
+            "Trình duyệt chưa cho phép đọc clipboard. Bạn có thể dùng Ctrl+V trong ô upload.",
+          );
+        }
+      }
+
+      pasteImageBtn.addEventListener("click", pasteImageFromClipboard);
+
+      document.addEventListener("paste", (e) => {
+        const imageFile = Array.from(e.clipboardData?.files || []).find(
+          (file) => file.type.startsWith("image/"),
+        );
+        if (imageFile) {
+          e.preventDefault();
+          setSelectedImage(imageFile);
         }
       });
 
@@ -434,8 +501,15 @@
         .getElementById("uploadForm")
         .addEventListener("submit", async (e) => {
           e.preventDefault();
+          const file = selectedImageFile || imageInput.files[0];
+          if (!file) {
+            alert(
+              "Vui lòng chọn, kéo thả hoặc dán một ảnh trước khi phân tích.",
+            );
+            return;
+          }
           const formData = new FormData();
-          formData.append("file", imageInput.files[0]);
+          formData.append("file", file);
 
           const btn = document.getElementById("searchBtn");
           const resultArea = document.getElementById("aiResultsArea");
@@ -465,11 +539,15 @@
                   aiGrid.innerHTML += `
                                 <div class="ai-result-card">
                                     <span class="ai-match-badge">Khớp ${item.match}</span>
-                                        <img src="${item.image}" alt="${item.name}">
+                                        <img src="${item.image}" alt="${item.name}" style="width:100%; aspect-ratio:3/4; object-fit:cover;">
                                     <div class="ai-result-info">
                                         <h4>${item.name}</h4>
                                         <div class="meta">${item.category}</div>
                                         <div class="price">${item.price}</div>
+                                        <div class="ai-result-actions">
+                                          <button type="button" class="buy-now-btn">Buy Now</button>
+                                          <button type="button" class="add-cart-btn">Add to cart</button>
+                                        </div>
                                     </div>
                                 </div>
                             `;

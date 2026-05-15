@@ -229,7 +229,7 @@ button { cursor: pointer; font-family: inherit; }
 /* ========== MAIN LAYOUT ========== */
 .main-content {
   display: flex;
-  gap: 40px;
+  gap: 28px;
   padding: 0 48px 60px;
   min-height: 70vh;
 }
@@ -343,8 +343,8 @@ button { cursor: pointer; font-family: inherit; }
 
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 20px;
 }
 
 /* ========== PRODUCT CARD ========== */
@@ -357,8 +357,8 @@ button { cursor: pointer; font-family: inherit; }
 
 .product-card-img {
   width: 100%;
-  aspect-ratio: 3 / 4;
-  object-fit: cover;
+  aspect-ratio: 3 / 4; /* Giữ tỉ lệ chuẩn thời trang */
+  object-fit: cover;   /* Ảnh lấp đầy khung hình, không bị giãn */
   background: var(--color-bg-alt);
   transition: var(--transition);
 }
@@ -368,25 +368,25 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 .product-card-info {
-  padding: 14px 0 4px;
+  padding: 10px 0 4px;
 }
 
 .product-category {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--color-text-secondary);
   margin-bottom: 4px;
   letter-spacing: 0.3px;
 }
 
 .product-name {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   line-height: 1.3;
 }
 
 .product-price {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 500;
   color: var(--color-text);
   margin-bottom: 8px;
@@ -452,6 +452,7 @@ button { cursor: pointer; font-family: inherit; }
   text-align: center;
   transition: var(--transition);
   position: relative;
+  cursor: pointer;
 }
 
 .upload-area:hover, .upload-area.dragover {
@@ -601,7 +602,7 @@ button { cursor: pointer; font-family: inherit; }
 /* AI Results */
 .ai-results {
   display: none;
-  max-width: 900px;
+  max-width: 980px;
   margin: 0 auto 48px;
 }
 
@@ -623,8 +624,8 @@ button { cursor: pointer; font-family: inherit; }
 
 .ai-results-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important; /* Luôn giữ 3 cột */
+  gap: 24px;
 }
 
 .ai-result-card {
@@ -656,18 +657,19 @@ button { cursor: pointer; font-family: inherit; }
 
 .ai-result-card img {
   width: 100%;
-  height: 240px;
+  height: 210px;
   object-fit: cover;
 }
 
 .ai-result-info {
-  padding: 16px;
+  padding: 12px;
 }
 
 .ai-result-info h4 {
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   font-weight: 600;
   margin-bottom: 4px;
+  line-height: 1.3;
 }
 
 .ai-result-info .meta {
@@ -678,7 +680,40 @@ button { cursor: pointer; font-family: inherit; }
 
 .ai-result-info .price {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.84rem;
+}
+
+.ai-result-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.buy-now-btn,
+.add-cart-btn {
+  min-height: 34px;
+  border: 1px solid var(--color-text);
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  transition: var(--transition);
+}
+
+.buy-now-btn {
+  background: var(--color-text);
+  color: #fff;
+}
+
+.add-cart-btn {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.buy-now-btn:hover,
+.add-cart-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ========== FOOTER ========== */
@@ -791,7 +826,8 @@ button { cursor: pointer; font-family: inherit; }
   .main-content { padding: 0 24px 40px; }
   .page-title { padding: 16px 24px 24px; }
   .breadcrumb-bar { padding: 20px 24px 0; }
-  .product-grid { grid-template-columns: repeat(2, 1fr); }
+  .product-grid { grid-template-columns: repeat(3, 1fr); }
+  .ai-results-grid { grid-template-columns: repeat(3, 1fr); }
   .ai-search-section { padding: 0 24px 40px; }
   .site-footer { padding: 40px 24px 0; }
   .tab-nav { padding: 0 24px; }
@@ -800,16 +836,19 @@ button { cursor: pointer; font-family: inherit; }
 @media (max-width: 768px) {
   .navbar-links, .navbar-center { display: none; }
   .sidebar { display: none; }
-  .product-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .product-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .ai-results-grid { grid-template-columns: repeat(2, 1fr); }
   .footer-grid { grid-template-columns: 1fr 1fr; }
   .steps { grid-template-columns: 1fr; gap: 24px; }
   .page-title { font-size: 1.6rem; }
+  .upload-controls { flex-wrap: wrap; }
 }
 
 @media (max-width: 480px) {
-  .product-grid { grid-template-columns: 1fr; }
+  .product-grid { grid-template-columns: repeat(2, 1fr); }
   .footer-grid { grid-template-columns: 1fr; }
   .ai-results-grid { grid-template-columns: 1fr; }
+  .ai-result-actions { grid-template-columns: 1fr; }
 }
 
 /* ========== ANIMATIONS ========== */
@@ -844,3 +883,38 @@ button { cursor: pointer; font-family: inherit; }
 ::-webkit-scrollbar-track { background: var(--color-bg-alt); }
 ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+/* --- CSS CHO PHÂN TRANG (MỚI) --- */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 50px;
+  padding-bottom: 50px;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  background: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.pagination-btn:hover:not(.disabled) {
+  border-color: var(--color-text);
+  background: var(--color-bg-alt);
+}
+
+.pagination-btn.active {
+  background: var(--color-text);
+  color: white;
+  border-color: var(--color-text);
+}
+
+.pagination-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

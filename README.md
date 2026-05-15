@@ -46,3 +46,5 @@ pip install faiss-cpu
 
 - Chạy code: 
 py -m uvicorn main:app --reload
+
+

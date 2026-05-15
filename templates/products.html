@@ -85,12 +85,16 @@
               class="product-image d-flex align-items-center justify-content-center"
               style="height: 230px"
             >
-              <span class="text-muted fs-3">📷 {{ item.category }}</span>
+              <img
+                src="{{ item.image }}"
+                alt="{{ item.name }}"
+                class="w-100 h-100"
+                style="object-fit: cover; border-radius: 14px 14px 0 0"
+              />
             </div>
             <div class="card-body">
               <span class="badge bg-dark mb-2">{{ item.category }}</span>
               <h5 class="card-title fw-bold">{{ item.name }}</h5>
-              <p class="card-text text-muted">{{ item.desc }}</p>
               <h5 class="text-danger fw-bold">{{ item.price }}</h5>
               <button class="btn btn-outline-dark btn-sm mt-2 w-100 shadow-sm">
                 Add to Cart

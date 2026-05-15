@@ -271,66 +271,6 @@ button { cursor: pointer; font-family: inherit; }
 .filter-list li:hover { color: var(--color-text-secondary); }
 .filter-list li.active { font-weight: 600; }
 
-/* Size buttons */
-.size-options {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.size-btn {
-  width: 40px;
-  height: 40px;
-  border: 1.5px solid var(--color-border);
-  background: none;
-  font-size: 0.8rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: var(--transition);
-}
-
-.size-btn:hover, .size-btn.active {
-  background: var(--color-text);
-  color: #fff;
-  border-color: var(--color-text);
-}
-
-/* Color swatches */
-.color-options {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.color-swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: var(--transition);
-  position: relative;
-}
-
-.color-swatch:hover, .color-swatch.active {
-  border-color: var(--color-text);
-  transform: scale(1.1);
-}
-
-.color-swatch.active::after {
-  content: '✓';
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-}
-
 /* Price slider */
 .price-range {
   width: 100%;
@@ -450,18 +390,6 @@ button { cursor: pointer; font-family: inherit; }
   font-weight: 500;
   color: var(--color-text);
   margin-bottom: 8px;
-}
-
-.product-colors {
-  display: flex;
-  gap: 6px;
-}
-
-.product-color-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
 }
 
 /* ========== PAGINATION ========== */

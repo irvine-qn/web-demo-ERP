@@ -1,4 +1,4 @@
-id,name,category,price,image_url
+id,name,category,price,image_path
 SP001,Relaxed Fit Shirt,Shirt,725.000 VND,Shirt/SP001.jpg
 SP002,Henley Shirt,Shirt,210.000 VND,Shirt/SP002.jpg
 SP003,Oversized Flannel Shirt,Shirt,630.000 VND,Shirt/SP003.jpg

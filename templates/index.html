@@ -27,6 +27,7 @@
             type="text"
             placeholder="Search your style..."
             id="textSearch"
+            value="{{ search_query }}"
           />
           <button
             class="camera-btn"
@@ -77,9 +78,9 @@
           <div class="filter-section">
             <div class="filter-title">Category</div>
             <ul class="filter-list" id="categoryFilter">
-              <li class="active" data-cat="all">All</li>
+              <li class="{{ 'active' if active_category == 'all' else '' }}" data-cat="all">All</li>
               {% for category in categories %}
-              <li data-cat="{{ category }}">{{ category }}</li>
+              <li class="{{ 'active' if active_category == category else '' }}" data-cat="{{ category }}">{{ category }}</li>
               {% endfor %}
             </ul>
           </div>
@@ -92,7 +93,7 @@
                 class="price-slider"
                 min="0"
                 max="10000000"
-                value="5000000"
+                value="{{ max_price }}"
                 id="priceSlider"
               />
               <div class="price-labels">
@@ -108,23 +109,22 @@
           <div class="products-header">
             <div class="products-count">
               Showing <strong>{{ products|length }}</strong> of
-              <strong>480</strong> products
+              <strong>{{ total_items }}</strong> products
             </div>
-            <!-- PAGINATION -->
-            <div class="pagination-container">
+            <div class="pagination-container header-pagination">
               {% if current_page > 1 %}
-              <a href="/?page={{ current_page - 1 }}" class="pagination-btn"
+              <a href="{{ page_url_prefix }}page={{ current_page - 1 }}" class="pagination-btn"
                 >← Prev</a
               >
               {% endif %} {% for p in range(1, total_pages + 1) %} {% if p >=
               current_page - 2 and p <= current_page + 2 %}
               <a
-                href="/?page={{ p }}"
+                href="{{ page_url_prefix }}page={{ p }}"
                 class="pagination-btn {{ 'active' if p == current_page else '' }}"
                 >{{ p }}</a
               >
               {% endif %} {% endfor %} {% if current_page < total_pages %}
-              <a href="/?page={{ current_page + 1 }}" class="pagination-btn"
+              <a href="{{ page_url_prefix }}page={{ current_page + 1 }}" class="pagination-btn"
                 >Next →</a
               >
               {% endif %}
@@ -132,10 +132,11 @@
             <div class="sort-select">
               <label for="sortBy">Sort by:</label>
               <select id="sortBy">
-                <option value="newest">Newest</option>
-                <option value="price-asc">Price Low to High</option>
-                <option value="price-desc">Price High to Low</option>
-                <option value="name">Name A-Z</option>
+                <option value="newest" {{ 'selected' if active_sort == 'newest' else '' }}>Newest</option>
+                <option value="price-asc" {{ 'selected' if active_sort == 'price-asc' else '' }}>Price Low to High</option>
+                <option value="price-desc" {{ 'selected' if active_sort == 'price-desc' else '' }}>Price High to Low</option>
+                <option value="name" {{ 'selected' if active_sort == 'name' else '' }}>Name A-Z</option>
+                <option value="category" {{ 'selected' if active_sort == 'category' else '' }}>Category</option>
               </select>
             </div>
           </div>
@@ -146,6 +147,7 @@
               class="product-card"
               data-category="{{ item.category }}"
               data-name="{{ item.name }}"
+              data-price="{{ item.price_value }}"
             >
               <img
                 src="{{ item.image }}"
@@ -157,9 +159,43 @@
                 <div class="product-category">{{ item.category }}</div>
                 <div class="product-name">{{ item.name }}</div>
                 <div class="product-price">{{ item.price }}</div>
+                <div class="product-actions">
+                  <button type="button" class="product-buy-btn">Buy Now</button>
+                  <button type="button" class="product-cart-btn" title="Add to cart">
+                    <i class="bi bi-bag-plus"></i>
+                  </button>
+                </div>
               </div>
             </div>
             {% endfor %}
+          </div>
+          <div class="pagination-container">
+            <a
+              href="{{ page_url_prefix }}page={{ current_page - 1 }}"
+              class="pagination-btn {{ 'disabled' if not has_prev else '' }}"
+            >
+              <i class="bi bi-chevron-left"></i>
+              Prev
+            </a>
+            <div class="pagination-pages">
+              {% for p in range(1, total_pages + 1) %}
+              {% if p == 1 or p == total_pages or (p >= current_page - 2 and p <= current_page + 2) %}
+              <a
+                href="{{ page_url_prefix }}page={{ p }}"
+                class="pagination-btn page-number {{ 'active' if p == current_page else '' }}"
+              >{{ p }}</a>
+              {% elif p == current_page - 3 or p == current_page + 3 %}
+              <span class="pagination-ellipsis">...</span>
+              {% endif %}
+              {% endfor %}
+            </div>
+            <a
+              href="{{ page_url_prefix }}page={{ current_page + 1 }}"
+              class="pagination-btn {{ 'disabled' if not has_next else '' }}"
+            >
+              Next
+              <i class="bi bi-chevron-right"></i>
+            </a>
           </div>
         </div>
       </div>
@@ -311,103 +347,45 @@
       aiTabBtn.addEventListener("click", () => showTab("ai"));
       switchToAI.addEventListener("click", () => showTab("ai"));
 
-      // ---- Product Filtering (Search, Category, Price, Sort) ----
+      // ---- Product Filtering (server-side) ----
       const productGrid = document.getElementById("productGrid");
       const searchInput = document.getElementById("textSearch");
       const categoryFilter = document.getElementById("categoryFilter");
       const priceSlider = document.getElementById("priceSlider");
       const sortBy = document.getElementById("sortBy");
+      const priceLabel = document.getElementById("priceValue");
 
-      function normalize(str) {
-        return str
-          ? str
-              .toLowerCase()
-              .normalize("NFD")
-              .replace(/\p{Diacritic}/gu, "")
-          : "";
-      }
-
-      function filterProducts() {
-        const searchVal = normalize(searchInput.value);
-        const activeCat = categoryFilter.querySelector(".active").dataset.cat;
-        const maxPrice = parseInt(priceSlider.value, 10);
-        const sortVal = sortBy.value;
-
-        let products = Array.from(productGrid.children);
-        products.forEach((card) => {
-          let show = true;
-          // Search by name
-          if (searchVal && !normalize(card.dataset.name).includes(searchVal))
-            show = false;
-          // Category
-          if (activeCat !== "all" && card.dataset.category !== activeCat)
-            show = false;
-          // Price
-          const price = parseInt(
-            card
-              .querySelector(".product-price")
-              .textContent.replace(/[^\d]/g, ""),
-          );
-          if (price > maxPrice) show = false;
-          card.style.display = show ? "" : "none";
-        });
-
-        // Sort
-        let visible = products.filter((card) => card.style.display !== "none");
-        visible.sort((a, b) => {
-          if (sortVal === "price-asc") {
-            return (
-              parseInt(
-                a
-                  .querySelector(".product-price")
-                  .textContent.replace(/[^\d]/g, ""),
-              ) -
-              parseInt(
-                b
-                  .querySelector(".product-price")
-                  .textContent.replace(/[^\d]/g, ""),
-              )
-            );
-          } else if (sortVal === "price-desc") {
-            return (
-              parseInt(
-                b
-                  .querySelector(".product-price")
-                  .textContent.replace(/[^\d]/g, ""),
-              ) -
-              parseInt(
-                a
-                  .querySelector(".product-price")
-                  .textContent.replace(/[^\d]/g, ""),
-              )
-            );
-          } else if (sortVal === "name") {
-            return a.dataset.name.localeCompare(b.dataset.name);
+      function applyCatalogFilters(updates = {}) {
+        const params = new URLSearchParams(window.location.search);
+        Object.entries(updates).forEach(([key, value]) => {
+          if (!value || value === "all" || value === "newest" || value === "10000000") {
+            params.delete(key);
+          } else {
+            params.set(key, value);
           }
-          return 0;
         });
-        visible.forEach((card) => productGrid.appendChild(card));
+        params.delete("page");
+        const query = params.toString();
+        window.location.href = query ? `/?${query}` : "/";
       }
 
       // Category
       categoryFilter.querySelectorAll("li").forEach((li) => {
         li.addEventListener("click", () => {
-          categoryFilter
-            .querySelectorAll("li")
-            .forEach((l) => l.classList.remove("active"));
-          li.classList.add("active");
-          filterProducts();
+          applyCatalogFilters({ category: li.dataset.cat });
         });
       });
-      // Price
-      priceSlider.addEventListener("input", filterProducts);
-      // Sort
-      sortBy.addEventListener("change", filterProducts);
-      // Search
-      searchInput.addEventListener("input", filterProducts);
-
-      // Initial filter
-      filterProducts();
+      priceSlider.addEventListener("change", () => {
+        applyCatalogFilters({ max_price: priceSlider.value });
+      });
+      sortBy.addEventListener("change", () => {
+        applyCatalogFilters({ sort: sortBy.value });
+      });
+      searchInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          applyCatalogFilters({ q: searchInput.value.trim() });
+        }
+      });
 
       // ---- Image Upload Preview ----
       const imageInput = document.getElementById("imageInput");

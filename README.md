@@ -1,6 +1,6 @@
-Utilizing Image Processing Model into ERP Systems for Product Searching in Fashion E-Commerce Platform
+# TOPIC: Utilizing Image Processing Model into ERP Systems for Product Searching in Fashion E-Commerce Platform
 
-📌 Tổng quan dự án (Project Overview)
+### Tổng quan dự án (Project Overview)
 
 Dự án LUMINA là một hệ thống ERP (Enterprise Resource Planning) hiện đại dành
 cho thương mại điện tử thời trang. Điểm đột phá của hệ thống là việc tích hợp mô
@@ -9,7 +9,7 @@ thông qua hình ảnh thay vì từ khóa truyền thống. Hệ thống giúp 
 nghiệm khách hàng và quản lý kho hàng thông minh dựa trên đặc trưng thị giác
 (Visual Features).
 
-🚀 Tính năng chính (Key Features)
+### Tính năng chính (Key Features)
 
   - AI Image Search: Tìm kiếm sản phẩm bằng cách upload ảnh, kéo thả hoặc dán
     ảnh từ clipboard.
@@ -21,7 +21,7 @@ nghiệm khách hàng và quản lý kho hàng thông minh dựa trên đặc tr
     Mobile (2 cột).
   - Category Filtering: Lọc sản phẩm theo danh mục và khoảng giá.
 
-🛠 Công nghệ sử dụng (Tech Stack)
+### Công nghệ sử dụng (Tech Stack)
 
   - Backend: FastAPI (Python) - Hiệu năng cao, xử lý bất đồng bộ.
   - AI/Deep Learning: PyTorch, Torchvision.
@@ -30,7 +30,7 @@ nghiệm khách hàng và quản lý kho hàng thông minh dựa trên đặc tr
   - Frontend: HTML5, CSS3 (Lumina Design System), JavaScript (Vanilla JS).
   - Database: CSV (Lưu trữ metadata sản phẩm) & .index (Lưu trữ vector AI).
 
-🧠 Chi tiết mô hình AI (Model Details)
+### Chi tiết mô hình AI (Model Details)
 
 Hệ thống sử dụng phương pháp Feature Fusion (Kết hợp đặc trưng) để đạt độ chính
 xác cao nhất:
@@ -44,7 +44,7 @@ xác cao nhất:
 4.  Ranking: Kết quả được tính toán bằng Cosine Similarity và trọng số ưu tiên:
     Style (46%) + Category (28%) + Color (18%) + Texture (8%).
 
-📁 Cấu trúc thư mục (Directory Structure)
+### Cấu trúc thư mục (Directory Structure)
 
 WEB DEMO ERP/
 ├── models/                     # Chứa file mô hình và index AI
@@ -66,9 +66,9 @@ WEB DEMO ERP/
 ├── main.py                     # Server Backend FastAPI
 └── requirements.txt            # Danh sách thư viện cần cài đặt
 
-🛠 Hướng dẫn cài đặt & Chạy (Installation & Setup)
+### Hướng dẫn cài đặt & Chạy (Installation & Setup)
 
-1. Cài đặt môi trường
+# 1. Cài đặt môi trường
 
 Yêu cầu Python 3.9 trở lên.
 
@@ -87,7 +87,7 @@ pip install -r requirements.txt
 pip install torch torchvision
 pip install faiss-cpu
 
-2. Chuẩn bị dữ liệu AI (Quan trọng)
+# 2. Chuẩn bị dữ liệu AI (Quan trọng)
 
 Trước khi chạy website, bạn cần tạo file danh bạ vector (.index) từ kho ảnh sản
 phẩm:
@@ -98,15 +98,15 @@ phẩm:
 
 python load_dataset.py
 
-3. Khởi chạy ứng dụng
+# 3. Khởi chạy ứng dụng
 
-Chạy server FastAPI bằng Uvicorn:
+- Chạy server FastAPI bằng Uvicorn:
 
 py -m uvicorn main:app --reload
 
-Truy cập ứng dụng tại: http://127.0.0.1:8000
+- Truy cập ứng dụng tại: http://127.0.0.1:8000
 
-📖 Hướng dẫn sử dụng (Usage)
+### Hướng dẫn sử dụng (Usage)
 
 1.  Xem sản phẩm: Trang chủ sẽ liệt kê toàn bộ sản phẩm từ ERP, sử dụng phân
     trang ở dưới cùng.
@@ -117,6 +117,7 @@ Truy cập ứng dụng tại: http://127.0.0.1:8000
       - Bấm "ANALYZE WITH AI".
       - Hệ thống sẽ trả về Top 9 sản phẩm giống nhất kèm độ khớp (Match %).
 
-Project Name: Lumina Fashion ERP Search System
-Author: Irvine
-Topic: Utilizing Image Processing Model into ERP Systems.
+---
+*Project Name: Lumina Fashion ERP Search System*
+*Author: Irvine*
+*Topic: Utilizing Image Processing Model into ERP Systems.*

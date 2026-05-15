@@ -45,7 +45,7 @@ xác cao nhất:
     Style (46%) + Category (28%) + Color (18%) + Texture (8%).
 
 ### Cấu trúc thư mục (Directory Structure)
-
+```
 WEB DEMO ERP/
 ├── models/                     # Chứa file mô hình và index AI
 │   ├── fashion_resnet50.pth    # Trọng số mô hình ResNet50
@@ -65,7 +65,7 @@ WEB DEMO ERP/
 ├── load_dataset.py             # Script tạo Index AI (Run first)
 ├── main.py                     # Server Backend FastAPI
 └── requirements.txt            # Danh sách thư viện cần cài đặt
-
+```
 ### Hướng dẫn cài đặt & Chạy (Installation & Setup)
 
 # 1. Cài đặt môi trường

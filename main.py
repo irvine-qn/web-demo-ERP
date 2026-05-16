@@ -494,8 +494,18 @@ async def search_image_api(file: UploadFile = File(...)):
         )
 
     image = Image.open(upload_path).convert("RGB")
-    results, predicted_category = _rank_similar_products(image, top_k=9)
 
+    results, predicted_category = _rank_similar_products(image, top_k=9)
+    # Nếu không có sản phẩm hoặc out-of-domain (ảnh không phải thời trang)
+    if not results or (predicted_category is None or all(float(item.get("category_confidence", 0)) < 45 for item in results)):
+        return JSONResponse(
+            status_code=200,
+            content=jsonable_encoder({
+                "status": "no-fashion",
+                "message": "We cannot find any products matching this in our fashion category.",
+                "results": [],
+            })
+        )
     # Sử dụng jsonable_encoder để bao bọc dữ liệu trả về
     return JSONResponse(
         content=jsonable_encoder({

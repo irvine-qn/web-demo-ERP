@@ -76,24 +76,24 @@ Nếu muốn fine-tune gender model thật sự, cần bổ sung nhãn `gender_s
 
 ```text
 WEB DEMO ERP/
-├── models/
-│   ├── fashion_resnet50.pth
-│   ├── vector_db.index
-│   └── product_ids.npy
-├── datasets/
-│   ├── Dress/, Shirt/, Pant/, ...
-│   └── products.csv
-├── static/
-│   ├── css/style.css
-│   └── uploads/
-├── templates/
-│   ├── index.html
-│   └── products.html
-├── database.py
-├── model_utils.py
-├── load_dataset.py
-├── main.py
-└── requirements.txt
+├── models/                     # Chứa file mô hình và index AI
+│   ├── fashion_resnet50.pth    # Trọng số mô hình ResNet50
+│   ├── vector_db.index         # Danh bạ vector AI (FAISS)
+│   └── product_ids.npy         # Mapping ID sản phẩm
+├── datasets/                   # Kho dữ liệu ERP
+│   ├── Dress/, Shirt/, ...     # Thư mục ảnh theo phân loại
+│   └── products.csv            # Metadata sản phẩm (ID, Name, Price...)
+├── static/                     # Tài nguyên tĩnh
+│   ├── css/style.css           # Giao diện Lumina Design
+│   └── uploads/                # Lưu trữ ảnh user search tạm thời
+├── templates/                  # Giao diện HTML (Jinja2)
+│   ├── index.html              # Trang chủ & AI Search
+│   └── products.html           # Trang kết quả tìm kiếm
+├── database.py                 # Xử lý truy vấn CSV
+├── model_utils.py              # Cấu hình PyTorch Model
+├── load_dataset.py             # Script tạo Index AI (Run first)
+├── main.py                     # Server Backend FastAPI
+└── requirements.txt            # Danh sách thư viện cần cài đặt
 ```
 
 ## Cài Đặt Và Chạy

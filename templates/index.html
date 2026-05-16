@@ -537,6 +537,10 @@
               }
 
               resultArea.scrollIntoView({ behavior: "smooth", block: "start" });
+            } else if (data.status === "no-fashion") {
+              aiGrid.innerHTML = `<div class="empty-state">We cannot find any products matching this in our fashion category.</div>`;
+              aiResults.classList.add("show");
+              resultArea.scrollIntoView({ behavior: "smooth", block: "start" });
             } else {
               alert(data.message || "Định dạng file không hỗ trợ");
             }

@@ -1,10 +1,8 @@
 import os
-
 import faiss
 import numpy as np
 from PIL import Image
 import torch
-
 from model_utils import get_model, transform
 
 

@@ -157,6 +157,7 @@
               />
               <div class="product-card-info">
                 <div class="product-category">{{ item.category }}</div>
+                <div class="product-gender">{{ item.gender_style }}</div>
                 <div class="product-name">{{ item.name }}</div>
                 <div class="product-price">{{ item.price }}</div>
                 <div class="product-actions">
@@ -168,6 +169,9 @@
               </div>
             </div>
             {% endfor %}
+            {% if products|length == 0 %}
+            <div class="empty-state">No products found</div>
+            {% endif %}
           </div>
           <div class="pagination-container">
             <a
@@ -520,7 +524,7 @@
                                         <img src="${item.image}" alt="${item.name}" style="width:100%; aspect-ratio:3/4; object-fit:cover;">
                                     <div class="ai-result-info">
                                         <h4>${item.name}</h4>
-                                        <div class="meta">${item.category}</div>
+                                        <div class="meta">${item.category} · ${item.gender_style}</div>
                                         <div class="price">${item.price}</div>
                                         <div class="ai-result-actions">
                                           <button type="button" class="buy-now-btn">Buy Now</button>
@@ -533,6 +537,8 @@
               }
 
               resultArea.scrollIntoView({ behavior: "smooth", block: "start" });
+            } else {
+              alert(data.message || "Định dạng file không hỗ trợ");
             }
           } catch (error) {
             alert("Lỗi kết nối đến Server AI!");

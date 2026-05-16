@@ -78,6 +78,11 @@
     <div class="container mt-5">
       <h2 class="mb-4 fw-bold">New Arrivals</h2>
       <div class="row">
+        {% if error %}
+        <div class="col-12">
+          <div class="alert alert-warning">{{ error }}</div>
+        </div>
+        {% endif %}
         {% for item in products %}
         <div class="col-md-4 mb-4">
           <div class="card h-100 shadow-sm border-0">
@@ -94,6 +99,7 @@
             </div>
             <div class="card-body">
               <span class="badge bg-dark mb-2">{{ item.category }}</span>
+              <span class="badge bg-secondary mb-2">{{ item.gender_style }}</span>
               <h5 class="card-title fw-bold">{{ item.name }}</h5>
               <h5 class="text-danger fw-bold">{{ item.price }}</h5>
               <button class="btn btn-outline-dark btn-sm mt-2 w-100 shadow-sm">
@@ -103,6 +109,11 @@
           </div>
         </div>
         {% endfor %}
+        {% if products|length == 0 and not error %}
+        <div class="col-12">
+          <p class="text-center text-muted">No products found</p>
+        </div>
+        {% endif %}
       </div>
     </div>
   </body>

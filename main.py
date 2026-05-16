@@ -1,7 +1,7 @@
 from functools import lru_cache
+import hashlib
 import os
 import re
-import shutil
 from urllib.parse import urlencode
 from uuid import uuid4
 import faiss
@@ -34,6 +34,9 @@ index = faiss.read_index(INDEX_PATH)
 image_names = np.load(NAMES_PATH)
 CLASS_NAMES = ["Dress", "Hat", "Outerwear", "Pant", "Shirt", "Shoes"]
 ITEMS_PER_PAGE = 50
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 
 
 def _price_to_int(price):
@@ -85,9 +88,48 @@ def _pagination_prefix(category="all", sort="newest", q="", max_price=10000000):
 
 def _safe_upload_path(filename):
     ext = os.path.splitext(filename or "")[1].lower()
-    if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
         ext = ".jpg"
     return os.path.join("static/uploads", f"{uuid4().hex}{ext}")
+
+
+def _is_supported_image(file):
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    return ext in ALLOWED_IMAGE_EXTENSIONS and file.content_type in ALLOWED_IMAGE_TYPES
+
+
+def _save_validated_upload(file):
+    if not _is_supported_image(file):
+        return None, "Định dạng file không hỗ trợ"
+
+    os.makedirs("static/uploads", exist_ok=True)
+    upload_path = _safe_upload_path(file.filename)
+    total_size = 0
+    with open(upload_path, "wb") as buffer:
+        while True:
+            chunk = file.file.read(1024 * 1024)
+            if not chunk:
+                break
+            total_size += len(chunk)
+            if total_size > MAX_UPLOAD_BYTES:
+                buffer.close()
+                os.remove(upload_path)
+                return None, "Ảnh vượt quá dung lượng hỗ trợ 12MB"
+            buffer.write(chunk)
+
+    try:
+        with Image.open(upload_path) as img:
+            img.verify()
+    except Exception:
+        os.remove(upload_path)
+        return None, "Định dạng file không hỗ trợ"
+
+    return upload_path, None
+
+
+def _image_digest(image):
+    normalized = image.convert("RGB").resize((224, 224))
+    return hashlib.sha256(normalized.tobytes()).hexdigest()
 
 
 def _extract_embedding(image):
@@ -186,9 +228,35 @@ def _product_signature(image_path):
         return _visual_signature(image)
 
 
+@lru_cache(maxsize=512)
+def _product_digest(image_path):
+    full_path = os.path.join("datasets", image_path.replace("/", os.sep))
+    with Image.open(full_path).convert("RGB") as image:
+        return _image_digest(image)
+
+
+def _absolute_distance_score(distance):
+    if distance <= 1e-4:
+        return 1.0
+    if distance <= 80:
+        return 0.9
+    if distance <= 180:
+        return 0.72
+    if distance <= 300:
+        return 0.5
+    if distance <= 420:
+        return 0.28
+    return 0.16
+
+
+def _is_out_of_domain(min_distance, category_confidence):
+    return category_confidence < 0.45 and min_distance > 320
+
+
 def _rank_similar_products(image, top_k=9):
     query_vec = _extract_embedding(image)
     query_color, query_texture = _visual_signature(image)
+    query_digest = _image_digest(image)
     predicted_category, category_confidence = _predict_category(image)
 
     # Search the whole small catalog, then hard-filter by the classifier category.
@@ -205,6 +273,9 @@ def _rank_similar_products(image, top_k=9):
     if not candidates:
         return [], None
 
+    nearest_distance = candidates[0][0]
+    out_of_domain = _is_out_of_domain(nearest_distance, category_confidence)
+
     category_candidates = []
     fallback_candidates = []
     for distance, idx in candidates:
@@ -217,7 +288,7 @@ def _rank_similar_products(image, top_k=9):
         else:
             fallback_candidates.append(row)
 
-    ranked_candidates = category_candidates
+    ranked_candidates = [] if out_of_domain else category_candidates
     if len(ranked_candidates) < top_k:
         ranked_candidates = category_candidates + fallback_candidates
     predicted_style = _predict_style(category_candidates)
@@ -234,9 +305,11 @@ def _rank_similar_products(image, top_k=9):
         seen.add(info["id"])
 
         product_color, product_texture = _product_signature(info["image_path"])
+        exact_image_match = query_digest == _product_digest(info["image_path"])
 
         # 1. Shape/form score from ResNet feature distance.
         vector_score = _similarity_from_distance(distance, min_dist, max_dist)
+        absolute_score = _absolute_distance_score(distance)
 
         # 2. Category is already hard-filtered when enough products exist.
         category_score = 1.0 if info["category"] == predicted_category else 0.0
@@ -258,12 +331,7 @@ def _rank_similar_products(image, top_k=9):
 
         # Tăng độ khớp cho ảnh giống hệt (vector_score, color_score, texture_score đều rất cao)
         # Nếu giống hoàn toàn (tất cả đều > 0.98), match = 99%
-        if (
-            vector_score > 0.98
-            and color_score > 0.98
-            and texture_score > 0.98
-            and category_score == 1.0
-        ):
+        if exact_image_match and category_score == 1.0:
             final_score = 0.99
         else:
             # Nếu khác màu rõ rệt hoặc chỉ hơi giống kiểu dáng, giảm mạnh tỉ lệ khớp
@@ -273,7 +341,7 @@ def _rank_similar_products(image, top_k=9):
                 + 0.32 * color_score
                 + 0.17 * texture_score
                 + 0.05 * category_score
-            ) * texture_penalty
+            ) * texture_penalty * (0.65 + 0.35 * absolute_score)
 
             is_query_plain = query_texture[0] < 0.05
             is_product_plain = product_texture[0] < 0.05
@@ -293,6 +361,10 @@ def _rank_similar_products(image, top_k=9):
             # Nếu khác màu rõ rệt hoặc chỉ hơi giống kiểu dáng, giảm mạnh tỉ lệ khớp
             if color_score < 0.5 or vector_score < 0.5:
                 final_score = min(final_score, 0.39)
+            if out_of_domain:
+                final_score = min(final_score, 0.29)
+            elif absolute_score < 0.35 and category_confidence < 0.6:
+                final_score = min(final_score, 0.38)
 
         item = dict(info)
         item["match_score"] = float(final_score)
@@ -302,6 +374,7 @@ def _rank_similar_products(image, top_k=9):
         item["detected_category"] = predicted_category
         item["category_confidence"] = round(category_confidence * 100, 1)
         item["detected_style"] = predicted_style
+        item["detected_gender_style"] = item.get("gender_style")
         # Tính % hiển thị thực tế hơn
         item["match"] = f"{int(round(max(1, min(99, final_score * 100))))}%"
         scored.append(item)
@@ -316,7 +389,7 @@ def _rank_similar_products(image, top_k=9):
         ),
         reverse=True,
     )
-    if len(category_candidates) >= top_k:
+    if not out_of_domain and len(category_candidates) >= top_k:
         scored = [item for item in scored if item["category"] == predicted_category]
     for item in scored:
         item.pop("match_score", None)
@@ -389,10 +462,14 @@ async def products_page(
 
 @app.post("/search", response_class=HTMLResponse)
 async def search(request: Request, file: UploadFile = File(...)):
-    os.makedirs("static/uploads", exist_ok=True)
-    upload_path = _safe_upload_path(file.filename)
-    with open(upload_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    upload_path, error = _save_validated_upload(file)
+    if error:
+        return templates.TemplateResponse(
+            request,
+            "products.html",
+            {"products": [], "query_img": None, "error": error},
+            status_code=400,
+        )
 
     image = Image.open(upload_path).convert("RGB")
     results, _ = _rank_similar_products(image, top_k=9)
@@ -409,10 +486,12 @@ async def search(request: Request, file: UploadFile = File(...)):
 
 @app.post("/api/search-image")
 async def search_image_api(file: UploadFile = File(...)):
-    os.makedirs("static/uploads", exist_ok=True)
-    upload_path = _safe_upload_path(file.filename)
-    with open(upload_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    upload_path, error = _save_validated_upload(file)
+    if error:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "message": error, "results": []},
+        )
 
     image = Image.open(upload_path).convert("RGB")
     results, predicted_category = _rank_similar_products(image, top_k=9)

@@ -393,6 +393,19 @@ button { cursor: pointer; font-family: inherit; }
   letter-spacing: 0.3px;
 }
 
+.product-gender {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
 .product-name {
   font-size: 0.82rem;
   font-weight: 600;
@@ -729,6 +742,18 @@ button { cursor: pointer; font-family: inherit; }
   font-size: 0.78rem;
   color: var(--color-text-secondary);
   margin-bottom: 6px;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  font-size: 0.9rem;
 }
 
 .ai-result-info .price {

@@ -3,12 +3,46 @@ import pandas as pd
 PRODUCTS_CSV = "datasets/products.csv"
 
 
+MASCULINE_KEYWORDS = {
+    "henley",
+    "oxford",
+    "polo",
+    "cargo",
+    "chino",
+    "derby",
+    "loafer",
+    "bomber",
+}
+FEMININE_KEYWORDS = {
+    "dress",
+    "skirt",
+    "floral",
+    "heels",
+    "blouse",
+    "gown",
+    "sandal",
+}
+
+
+def classify_gender_style(name, category):
+    """Classify fashion style into masculine, feminine, or neutral."""
+    text = f"{name or ''} {category or ''}".lower()
+    if category == "Dress" or any(keyword in text for keyword in FEMININE_KEYWORDS):
+        return "Feminine"
+    if any(keyword in text for keyword in MASCULINE_KEYWORDS):
+        return "Masculine"
+    return "Neutral"
+
+
 def _format_product(row):
     image_path = str(row["image_path"]).replace("\\", "/")
+    name = row["name"]
+    category = row["category"]
     return {
         "id": row["id"],
-        "name": row["name"],
-        "category": row["category"],
+        "name": name,
+        "category": category,
+        "gender_style": classify_gender_style(name, category),
         "price": row["price"],
         "image_path": image_path,
         "image": f"/datasets/{image_path}",

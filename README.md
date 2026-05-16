@@ -1,131 +1,142 @@
 # TOPIC: Utilizing Image Processing Model into ERP Systems for Product Searching in Fashion E-Commerce Platform
+# Project Name: Lumina Fashion ERP Search System
 
-### Tổng quan dự án (Project Overview)
+## Tổng Quan Dự Án
 
-Dự án LUMINA là một hệ thống ERP (Enterprise Resource Planning) hiện đại dành
-cho thương mại điện tử thời trang. Điểm đột phá của hệ thống là việc tích hợp mô
-hình xử lý hình ảnh (Image Processing) cho phép người dùng tìm kiếm sản phẩm
-thông qua hình ảnh thay vì từ khóa truyền thống. Hệ thống giúp tối ưu hóa trải
-nghiệm khách hàng và quản lý kho hàng thông minh dựa trên đặc trưng thị giác
-(Visual Features).
+LUMINA là demo ERP/e-commerce cho thời trang, tập trung vào tìm kiếm sản phẩm bằng hình ảnh. Người dùng có thể upload, kéo thả hoặc paste ảnh trang phục; hệ thống phân tích ảnh và trả về các sản phẩm có kiểu dáng, màu sắc và họa tiết gần nhất trong catalog.
 
-### Tính năng chính (Key Features)
+## Tính Năng Chính
 
-  - AI Image Search: Tìm kiếm sản phẩm bằng cách upload ảnh, kéo thả hoặc dán
-    ảnh từ clipboard.
-  - Visual Ranking: Hệ thống phân loại và sắp xếp kết quả theo độ khớp (%) dựa
-    trên Kiểu dáng (Style), Màu sắc (Color) và Họa tiết (Texture).
-  - ERP Product Management: Trang chủ hiển thị danh sách sản phẩm theo dạng Grid
-    (5 cột), hỗ trợ phân trang (Pagination) 50 sản phẩm/trang.
-  - Responsive Design: Giao diện tối ưu cho Desktop (5 cột), Tablet (3 cột) và
-    Mobile (2 cột).
-  - Category Filtering: Lọc sản phẩm theo danh mục và khoảng giá.
+- AI Image Search: tìm sản phẩm bằng ảnh từ file, drag/drop hoặc clipboard.
+- Visual Ranking: ưu tiên kết quả theo thứ tự `kiểu dáng + màu sắc`, sau đó `màu sắc`, rồi mới đến `kiểu dáng`.
+- Match Score thực tế: ảnh trùng dataset được giới hạn tối đa 99%, không hiển thị 100% vì ảnh có thể bị nén, mờ, resize hoặc sai khác nhỏ.
+- Category Filtering: lọc theo danh mục sản phẩm và khoảng giá.
+- Sorting/Pagination: sắp xếp theo giá, tên, danh mục; phân trang 50 sản phẩm/trang.
+- Responsive UI: desktop 5 cột, tablet 3 cột, mobile 2 cột; kết quả AI giữ layout riêng.
+- Gender Style Classification: gán nhãn phong cách `Masculine`, `Feminine`, `Neutral` cho sản phẩm thời trang.
+- Edge Case Handling: chặn file không hỗ trợ, giới hạn upload 12MB, giảm điểm ảnh ngoài domain thời trang, hiển thị `No products found` khi database rỗng.
 
-### Công nghệ sử dụng (Tech Stack)
+## Công Nghệ Sử Dụng
 
-  - Backend: FastAPI (Python) - Hiệu năng cao, xử lý bất đồng bộ.
-  - AI/Deep Learning: PyTorch, Torchvision.
-  - Vector Search: FAISS (Facebook AI Similarity Search).
-  - Image Processing: ResNet50, Pillow (PIL).
-  - Frontend: HTML5, CSS3 (Lumina Design System), JavaScript (Vanilla JS).
-  - Database: CSV (Lưu trữ metadata sản phẩm) & .index (Lưu trữ vector AI).
+- Backend: FastAPI, Python.
+- AI/Deep Learning: PyTorch, Torchvision.
+- Vector Search: FAISS.
+- Image Processing: ResNet50, Pillow.
+- Frontend: HTML5, CSS3, Vanilla JavaScript.
+- Database: CSV metadata và FAISS index.
 
-### Chi tiết mô hình AI (Model Details)
+## Chi Tiết Mô Hình AI
 
-Hệ thống sử dụng phương pháp Feature Fusion (Kết hợp đặc trưng) để đạt độ chính
-xác cao nhất:
+Hệ thống dùng ResNet50 đã fine-tune cho 6 nhóm sản phẩm: `Dress`, `Hat`, `Outerwear`, `Pant`, `Shirt`, `Shoes`.
 
-1.  Kiểu dáng (Style): Sử dụng mô hình ResNet50 đã qua huấn luyện (Pre-trained
-    on ImageNet/Fine-tuned) để trích xuất Embedding Vector (2048 chiều).
-2.  Màu sắc (Color): Sử dụng Color Histogram trong không gian màu RGB để nhận
-    diện màu sắc chủ đạo.
-3.  Họa tiết (Texture): Phân tích độ tương phản và cạnh (Edges) để phân biệt đồ
-    trơn và đồ có họa tiết.
-4.  Ranking: Kết quả được tính toán bằng Cosine Similarity và trọng số ưu tiên:
-    Style (46%) + Category (28%) + Color (18%) + Texture (8%).
+Luồng hoạt động:
 
-### Cấu trúc thư mục (Directory Structure)
-```
+1. Ảnh upload được resize/normalize giống lúc train.
+2. ResNet50 classifier dự đoán category sản phẩm.
+3. Feature extractor lấy embedding 2048 chiều từ ResNet50.
+4. FAISS tìm các sản phẩm gần nhất trong vector database.
+5. Backend tính thêm chữ ký thị giác bằng Pillow:
+   - màu chủ đạo từ RGB mean có lọc saturation,
+   - texture từ edge/contrast để phân biệt trơn và họa tiết,
+   - style key từ tên sản phẩm trong `products.csv`.
+6. Ranking cuối cùng ưu tiên:
+   - category/shape đúng,
+   - màu giống,
+   - texture/họa tiết giống,
+   - style name giống.
+
+Ảnh không phải thời trang thường có confidence category thấp và khoảng cách FAISS cao, nên điểm match bị giới hạn thấp thay vì bị đẩy lên cao bởi chuẩn hóa tương đối.
+
+## Fine-Tune Model
+
+ResNet50 được fine-tune bằng transfer learning:
+
+1. Dùng backbone ResNet50 pre-trained.
+2. Thay fully connected layer cuối thành 6 output class theo category thời trang.
+3. Train trên dataset ảnh chia theo thư mục category.
+4. Lưu trọng số vào `models/fashion_resnet50.pth`.
+5. Khi tạo index, bỏ classifier head và dùng phần backbone để sinh embedding 2048 chiều cho từng ảnh.
+
+Phân loại giới tính thời trang hiện được triển khai ở tầng metadata/rule-based vì `products.csv` chưa có nhãn gender train riêng. Hệ thống trả về 3 nhãn:
+
+- `Masculine`: các item có keyword như Henley, Oxford, Polo, Cargo, Chino, Derby, Loafer, Bomber.
+- `Feminine`: Dress hoặc keyword như Floral, Blouse, Gown, Heels, Sandal.
+- `Neutral`: các sản phẩm còn lại hoặc sản phẩm có phong cách unisex.
+
+Nếu muốn fine-tune gender model thật sự, cần bổ sung nhãn `gender_style` vào dataset và train thêm classifier 3 lớp: `Masculine`, `Feminine`, `Neutral`.
+
+## Vì Sao Chọn ResNet50
+
+- Đủ mạnh cho trích xuất đặc trưng hình ảnh thời trang nhưng vẫn chạy được trong demo local.
+- Có backbone pre-trained ổn định, dễ fine-tune với dataset vừa và nhỏ.
+- Embedding 2048 chiều phù hợp với FAISS để tìm kiếm nhanh.
+- Dễ debug hơn các kiến trúc lớn hơn như ViT/CLIP khi mục tiêu demo là category + visual similarity trong catalog nội bộ.
+
+## Cấu Trúc Thư Mục
+
+```text
 WEB DEMO ERP/
-├── models/                     # Chứa file mô hình và index AI
-│   ├── fashion_resnet50.pth    # Trọng số mô hình ResNet50
-│   ├── vector_db.index         # Danh bạ vector AI (FAISS)
-│   └── product_ids.npy         # Mapping ID sản phẩm
-├── datasets/                   # Kho dữ liệu ERP
-│   ├── Dress/, Shirt/, ...     # Thư mục ảnh theo phân loại
-│   └── products.csv            # Metadata sản phẩm (ID, Name, Price...)
-├── static/                     # Tài nguyên tĩnh
-│   ├── css/style.css           # Giao diện Lumina Design
-│   └── uploads/                # Lưu trữ ảnh user search tạm thời
-├── templates/                  # Giao diện HTML (Jinja2)
-│   ├── index.html              # Trang chủ & AI Search
-│   └── products.html           # Trang kết quả tìm kiếm
-├── database.py                 # Xử lý truy vấn CSV
-├── model_utils.py              # Cấu hình PyTorch Model
-├── load_dataset.py             # Script tạo Index AI (Run first)
-├── main.py                     # Server Backend FastAPI
-└── requirements.txt            # Danh sách thư viện cần cài đặt
+├── models/
+│   ├── fashion_resnet50.pth
+│   ├── vector_db.index
+│   └── product_ids.npy
+├── datasets/
+│   ├── Dress/, Shirt/, Pant/, ...
+│   └── products.csv
+├── static/
+│   ├── css/style.css
+│   └── uploads/
+├── templates/
+│   ├── index.html
+│   └── products.html
+├── database.py
+├── model_utils.py
+├── load_dataset.py
+├── main.py
+└── requirements.txt
 ```
-### Hướng dẫn cài đặt & Chạy (Installation & Setup)
 
-# 1. Cài đặt môi trường
+## Cài Đặt Và Chạy
 
 Yêu cầu Python 3.9 trở lên.
 
-# Clone dự án
-```
-git clone https://github.com/irvine-qn/web-demo-ERP
-cd fashion-erp-ai
-```
-
-# Tạo môi trường ảo
-```
+```bash
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
-
-# Cài đặt thư viện
-```
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-* Cài thêm những nội dung sau nếu lệnh ```pip install -r requirements.txt``` không thể cài đặt hết được:
-```
-pip install torch torchvision
-pip install faiss-cpu
+Nếu thiếu thư viện AI:
+
+```bash
+pip install torch torchvision faiss-cpu
 ```
 
-# 2. Chuẩn bị dữ liệu AI (Quan trọng)
+Tạo lại FAISS index sau khi thay dataset:
 
-Trước khi chạy website, bạn cần tạo file danh bạ vector (.index) từ kho ảnh sản
-phẩm:
-
-1.  Đảm bảo ảnh sản phẩm đã nằm trong thư mục datasets/.
-2.  Đảm bảo file models/fashion_resnet50.pth đã sẵn sàng.
-3.  Chạy script tạo index:
-```
+```bash
 python load_dataset.py
 ```
 
-# 3. Khởi chạy ứng dụng
+Chạy server:
 
-- Chạy server FastAPI bằng Uvicorn:
-```
+```bash
 py -m uvicorn main:app --reload
 ```
-- Truy cập ứng dụng tại: http://127.0.0.1:8000
 
-### Hướng dẫn sử dụng (Usage)
+Truy cập: http://127.0.0.1:8000
 
-1.  Xem sản phẩm: Trang chủ sẽ liệt kê toàn bộ sản phẩm từ ERP, sử dụng phân
-    trang ở dưới cùng.
-2.  Tìm kiếm bằng hình ảnh:
-      - Chuyển sang tab AI Image Search.
-      - Kéo một ảnh từ máy tính hoặc dán (Ctrl+V) ảnh một chiếc áo/quần vào vùng upload.
-      - Bấm "ANALYZE WITH AI".
-      - Hệ thống sẽ trả về Top 9 sản phẩm giống nhất kèm độ khớp (Match %).
+## Test Case Đã Xử Lý
+
+- Ảnh có trong dataset: kết quả đúng được ưu tiên top 1, match tối đa 99%.
+- Ảnh quần áo ngoài dataset: tìm sản phẩm cùng vibe/category thay vì yêu cầu match tuyệt đối.
+- Ảnh bị mờ/resize: vẫn dùng shape, color, texture để ranking.
+- Ảnh không phải thời trang: match bị hạ thấp khi confidence thấp và khoảng cách FAISS cao.
+- File `.txt`, `.pdf` hoặc định dạng không hỗ trợ: trả lỗi `Định dạng file không hỗ trợ`.
+- `products.csv` rỗng: giao diện hiển thị `No products found`, không trắng trang.
 
 ---
 *Project Name: Lumina Fashion ERP Search System*
 
-*Topic: Utilizing Image Processing Model into ERP Systems.*
+*Author: Vo Anh Hao, Irvine*
+

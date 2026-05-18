@@ -374,7 +374,7 @@ def _rank_similar_products(image, top_k=9):
         item["detected_category"] = predicted_category
         item["category_confidence"] = round(category_confidence * 100, 1)
         item["detected_style"] = predicted_style
-        item["detected_gender_style"] = item.get("gender_style")
+        item["color"] = item.get("color")
         # Tính % hiển thị thực tế hơn
         item["match"] = f"{int(round(max(1, min(99, final_score * 100))))}%"
         scored.append(item)

@@ -47,7 +47,7 @@ def create_index():
                 print(f"Loi tai file {img_path}: {exc}")
 
     if not vectors:
-        raise RuntimeError("Khong tim thay anh hop le de tao index.")
+        raise RuntimeError("No valid images were found to generate the index.")
 
     vectors = np.array(vectors).astype("float32")
     index = faiss.IndexFlatL2(vectors.shape[1])

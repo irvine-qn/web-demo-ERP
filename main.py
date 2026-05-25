@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 from datetime import datetime
 from functools import lru_cache
 import hashlib
@@ -170,7 +170,7 @@ def _is_supported_image(file):
 
 def _save_validated_upload(file):
     if not _is_supported_image(file):
-        return None, "Định dạng file không hỗ trợ"
+        return None, "Äá»‹nh dáº¡ng file khÃ´ng há»— trá»£"
 
     os.makedirs("static/uploads", exist_ok=True)
     upload_path = _safe_upload_path(file.filename)
@@ -184,7 +184,7 @@ def _save_validated_upload(file):
             if total_size > MAX_UPLOAD_BYTES:
                 buffer.close()
                 os.remove(upload_path)
-                return None, "Ảnh vượt quá dung lượng hỗ trợ 12MB"
+                return None, "áº¢nh vÆ°á»£t quÃ¡ dung lÆ°á»£ng há»— trá»£ 12MB"
             buffer.write(chunk)
 
     try:
@@ -192,7 +192,7 @@ def _save_validated_upload(file):
             img.verify()
     except Exception:
         os.remove(upload_path)
-        return None, "Định dạng file không hỗ trợ"
+        return None, "Äá»‹nh dáº¡ng file khÃ´ng há»— trá»£"
 
     return upload_path, None
 
@@ -205,7 +205,6 @@ def _image_digest(image):
 def _extract_embedding(image):
     img_t = transform(image).unsqueeze(0)
     with torch.no_grad():
-        # Keep query features in the same vector space used to build vector_db.index.
         return model(img_t).flatten().cpu().numpy().astype("float32")
 
 
@@ -329,9 +328,6 @@ def _rank_similar_products(image, top_k=9):
     query_digest = _image_digest(image)
     predicted_category, category_confidence = _predict_category(image)
 
-    # Search the whole small catalog, then hard-filter by the classifier category.
-    # This prevents a Hat query from being filled with Shoes just because they are
-    # close in the embedding index.
     search_k = index.ntotal
     distances, indices = index.search(query_vec.reshape(1, -1), k=search_k)
 
@@ -377,17 +373,13 @@ def _rank_similar_products(image, top_k=9):
         product_color, product_texture = _product_signature(info["image_path"])
         exact_image_match = query_digest == _product_digest(info["image_path"])
 
-        # 1. Shape/form score from ResNet feature distance.
         vector_score = _similarity_from_distance(distance, min_dist, max_dist)
         absolute_score = _absolute_distance_score(distance)
 
-        # 2. Category is already hard-filtered when enough products exist.
         category_score = 1.0 if info["category"] == predicted_category else 0.0
 
-        # 3. Color is the second gate after exact shape/style+color matches.
         color_score = _color_similarity(query_color, product_color)
 
-        # 4. Texture/pattern separates plain products from patterned ones.
         texture_score = _texture_similarity(query_texture, product_texture)
         texture_penalty = 1.0 if abs(query_texture[0] - product_texture[0]) < 0.15 else 0.5
         product_style = _style_key(info["name"], info["category"])
@@ -399,13 +391,9 @@ def _rank_similar_products(image, top_k=9):
             texture_score,
         )
 
-        # Tăng độ khớp cho ảnh giống hệt (vector_score, color_score, texture_score đều rất cao)
-        # Nếu giống hoàn toàn (tất cả đều > 0.98), match = 99%
         if exact_image_match and category_score == 1.0:
             final_score = 0.99
         else:
-            # Nếu khác màu rõ rệt hoặc chỉ hơi giống kiểu dáng, giảm mạnh tỉ lệ khớp
-            # Nếu color_score < 0.5 hoặc vector_score < 0.5 thì match < 40%
             base_score = (
                 0.46 * shape_style_score
                 + 0.32 * color_score
@@ -428,7 +416,6 @@ def _rank_similar_products(image, top_k=9):
             band_min, band_width = priority_bands[priority]
             final_score = band_min + (band_width * base_score)
 
-            # Nếu khác màu rõ rệt hoặc chỉ hơi giống kiểu dáng, giảm mạnh tỉ lệ khớp
             if color_score < 0.5 or vector_score < 0.5:
                 final_score = min(final_score, 0.39)
             if out_of_domain:
@@ -445,11 +432,9 @@ def _rank_similar_products(image, top_k=9):
         item["category_confidence"] = round(category_confidence * 100, 1)
         item["detected_style"] = predicted_style
         item["color"] = item.get("color")
-        # Tính % hiển thị thực tế hơn
         item["match"] = f"{int(round(max(1, min(99, final_score * 100))))}%"
         scored.append(item)
     
-    # Sắp xếp giảm dần theo match_score (tỉ lệ khớp), nếu bằng thì ưu tiên priority, shape_score, color_score
     scored.sort(
         key=lambda x: (
             x["match_score"],
@@ -478,9 +463,8 @@ async def index_page(
     q: str = "",
     max_price: int = 10000000,
 ):
-    all_products = get_all_products() # Giả sử hàm này trả về list toàn bộ sp
+    all_products = get_all_products() # Giáº£ sá»­ hÃ m nÃ y tráº£ vá» list toÃ n bá»™ sp
     
-    # Logic phân trang
     filtered_products = _filter_and_sort_products(
         all_products,
         category=category,
@@ -492,7 +476,6 @@ async def index_page(
     total_pages = max(1, ceil(total_items / ITEMS_PER_PAGE))
     page = max(1, min(page, total_pages))
     
-    # Cắt mảng sản phẩm theo trang
     start = (page - 1) * ITEMS_PER_PAGE
     end = start + ITEMS_PER_PAGE
     products_to_show = filtered_products[start:end]
@@ -546,8 +529,6 @@ async def admin_inventory_page(request: Request):
 
 @app.get("/admin/procurement", response_class=HTMLResponse)
 async def admin_procurement_page(request: Request):
-    if not _is_admin_logged_in(request):
-        return _admin_login_redirect()
     return templates.TemplateResponse(request, "admin_procurement.html", {})
 
 
@@ -594,65 +575,6 @@ async def admin_logout():
     response = RedirectResponse(url="/admin/login", status_code=303)
     response.delete_cookie(ADMIN_COOKIE_NAME)
     return response
-
-
-@app.post("/search", response_class=HTMLResponse)
-async def search(request: Request, file: UploadFile = File(...)):
-    upload_path, error = _save_validated_upload(file)
-    if error:
-        return templates.TemplateResponse(
-            request,
-            "products.html",
-            {"products": [], "query_img": None, "error": error},
-            status_code=400,
-        )
-
-    image = Image.open(upload_path).convert("RGB")
-    results, _ = _rank_similar_products(image, top_k=9)
-
-    return templates.TemplateResponse(
-        request,
-        "products.html",
-        {
-            "products": results,
-            "query_img": os.path.basename(upload_path),
-        },
-    )
-
-
-@app.post("/api/search-image")
-async def search_image_api(file: UploadFile = File(...)):
-    await asyncio.sleep(1.2)
-    upload_path, error = _save_validated_upload(file)
-    if error:
-        return JSONResponse(
-            status_code=400,
-            content={"status": "error", "message": error, "results": []},
-        )
-
-    image = Image.open(upload_path).convert("RGB")
-
-    results, predicted_category = _rank_similar_products(image, top_k=9)
-    results = [_with_inventory(item) for item in results]
-    # Nếu không có sản phẩm hoặc out-of-domain (ảnh không phải thời trang)
-    if not results or (predicted_category is None or all(float(item.get("category_confidence", 0)) < 45 for item in results)):
-        return JSONResponse(
-            status_code=200,
-            content=jsonable_encoder({
-                "status": "no-fashion",
-                "message": "We cannot find any products matching this in our fashion category.",
-                "results": [],
-            })
-        )
-    # Sử dụng jsonable_encoder để bao bọc dữ liệu trả về
-    return JSONResponse(
-        content=jsonable_encoder({
-            "status": "success",
-            "message": f"Found {len(results)} matching products"
-            + (f" in the {predicted_category} category" if predicted_category else ""),
-            "results": results,
-        })
-    )
 
 
 @app.post("/api/orders")
@@ -724,7 +646,7 @@ async def procurement_search_image_api(file: UploadFile = File(...)):
         )
 
     image = Image.open(upload_path).convert("RGB")
-    results, predicted_category = _rank_similar_products(image, top_k=4)
+    results, predicted_category = _rank_similar_products(image, top_k=10)
     results = [_with_inventory(item) for item in results]
 
     if not results:

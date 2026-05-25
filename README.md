@@ -85,9 +85,13 @@ Luồng xử lý ảnh:
 1. Validate ảnh upload, giới hạn 12MB.
 2. Resize/normalize ảnh theo cấu hình model.
 3. Classifier dự đoán category.
-4. Feature extractor sinh embedding 2048 chiều.
-5. FAISS tìm ảnh gần nhất trong `models/vector_db.index`.
-6. Backend kết hợp thêm màu sắc, texture và style key để ranking thực tế hơn.
+4. Trích xuất và nối vector:
+   - ResNet50 backbone: 2048 chiều
+   - Color histogram (RGB, 16 bins/channel): 48 chiều
+   - LBP texture histogram: 256 chiều
+5. Chuẩn hóa L2 từng khối, gộp thành vector 2352 chiều.
+6. FAISS `IndexFlatIP` (cosine similarity) trên `models/vector_db.index`.
+7. Re-ranking thêm cosine Color/LBP + style key cho quần áo cùng category.
 
 ## Cấu Trúc Thư Mục
 
@@ -95,7 +99,7 @@ Luồng xử lý ảnh:
 web demo ERP/
 ├── datasets/
 │   ├── Dress/, Hat/, Outerwear/, Pant/, Shirt/, Shoes/
-│   └── products.csv
+│   └── products.csv   # ID, Type, Name, Price, Link, Primary Color, Color Label
 ├── models/
 │   ├── fashion_resnet50.pth
 │   ├── vector_db.index
@@ -109,6 +113,7 @@ web demo ERP/
 │   ├── admin_login.html
 │   └── admin_procurement.html
 ├── database.py
+├── feature_extractors.py
 ├── load_dataset.py
 ├── main.py
 ├── model_utils.py
@@ -137,11 +142,13 @@ py -m uvicorn main:app --reload --port 8001
 
 ## Tạo Lại FAISS Index
 
-Chạy lại khi thay đổi dataset ảnh hoặc `products.csv`:
+**Bắt buộc** sau khi cập nhật pipeline fused features (ResNet + Color + LBP):
 
 ```powershell
 py load_dataset.py
 ```
+
+Index mới dùng cosine similarity (`IndexFlatIP`, 2352 chiều). Nếu chưa rebuild, server sẽ báo lỗi dimension mismatch.
 
 ## API Đang Dùng
 

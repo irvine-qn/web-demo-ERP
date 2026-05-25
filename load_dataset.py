@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 import torch
 from model_utils import get_model, transform
+from feature_extractors import FUSED_DIM, build_combined_vector
 
 
 DATASET_DIR = "datasets"
@@ -22,6 +23,9 @@ def create_index():
     image_names = []
 
     print(f"Bat dau quet dataset tai: {DATASET_DIR}...")
+    print(
+        f"Vector: ResNet50(2048) + ColorHist(48) + HOG(1764) = {FUSED_DIM} dims, cosine (IndexFlatIP)"
+    )
 
     for subdir in sorted(os.listdir(DATASET_DIR)):
         sub_path = os.path.join(DATASET_DIR, subdir)
@@ -36,12 +40,13 @@ def create_index():
             img_path = os.path.join(sub_path, file)
             try:
                 image = Image.open(img_path).convert("RGB")
-                img_t = transform(image).unsqueeze(0).to(device)
-
-                with torch.no_grad():
-                    vector = model(img_t).flatten().cpu().numpy()
-
-                vectors.append(vector.astype("float32"))
+                fused = build_combined_vector(
+                    image,
+                    model=model,
+                    transform=transform,
+                    device=device,
+                )
+                vectors.append(fused)
                 image_names.append(file)
             except Exception as exc:
                 print(f"Loi tai file {img_path}: {exc}")
@@ -49,8 +54,12 @@ def create_index():
     if not vectors:
         raise RuntimeError("No valid images were found to generate the index.")
 
-    vectors = np.array(vectors).astype("float32")
-    index = faiss.IndexFlatL2(vectors.shape[1])
+    vectors = np.array(vectors, dtype=np.float32)
+    if vectors.shape[1] != FUSED_DIM:
+        raise RuntimeError(f"Unexpected vector size {vectors.shape[1]}, expected {FUSED_DIM}")
+
+    # IndexFlatIP on L2-normalized vectors = cosine similarity
+    index = faiss.IndexFlatIP(FUSED_DIM)
     index.add(vectors)
 
     os.makedirs("models", exist_ok=True)
@@ -58,7 +67,7 @@ def create_index():
     np.save(NAMES_PATH, np.array(image_names))
 
     print(f"THANH CONG: Da tao danh ba AI cho {len(vectors)} san pham.")
-    print(f"Kich thuoc vector: {vectors.shape[1]}")
+    print(f"Kich thuoc vector: {vectors.shape[1]} (cosine / inner product)")
 
 
 if __name__ == "__main__":

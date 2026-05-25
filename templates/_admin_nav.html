@@ -1,0 +1,29 @@
+<nav class="navbar admin-navbar">
+  <div class="navbar-left">
+    <a href="/admin" class="navbar-logo">LUMINA ERP</a>
+    <ul class="navbar-links">
+      <li>
+        <a href="/" class="{{ 'active' if active_admin_nav == 'storefront' else '' }}">Storefront</a>
+      </li>
+      <li>
+        <a
+          href="/admin/inventory"
+          class="{{ 'active' if active_admin_nav == 'inventory' else '' }}"
+          >Inventory</a
+        >
+      </li>
+      <li>
+        <a
+          href="/admin/procurement"
+          class="{{ 'active' if active_admin_nav == 'procurement' else '' }}"
+          >Procurement</a
+        >
+      </li>
+    </ul>
+  </div>
+  <div class="navbar-right">
+    <a href="/admin/logout" class="admin-logout-link">
+      <i class="bi bi-box-arrow-right"></i> Logout
+    </a>
+  </div>
+</nav>

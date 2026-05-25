@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LUMINA ERP - Admin Register</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body class="admin-body">
+    <main class="admin-login-page">
+      <form class="admin-login-panel" method="post" action="/admin/register">
+        <a href="/" class="navbar-logo">LUMINA ERP</a>
+        <div>
+          <div class="admin-kicker">Admin Access</div>
+          <h1>Create admin account</h1>
+        </div>
+
+        {% if error %}
+        <div class="admin-login-error">{{ error }}</div>
+        {% endif %}
+
+        <label class="admin-login-field">
+          <span>Username</span>
+          <input
+            type="text"
+            name="username"
+            value="{{ username }}"
+            autocomplete="username"
+            required
+          />
+        </label>
+
+        <label class="admin-login-field">
+          <span>Password</span>
+          <input
+            type="password"
+            name="password"
+            autocomplete="new-password"
+            required
+            minlength="6"
+          />
+        </label>
+
+        <label class="admin-login-field">
+          <span>Confirm password</span>
+          <input
+            type="password"
+            name="confirm_password"
+            autocomplete="new-password"
+            required
+            minlength="6"
+          />
+        </label>
+
+        <button type="submit" class="admin-login-btn">
+          <i class="bi bi-person-plus"></i>
+          Register
+        </button>
+
+        <div class="admin-login-hint">
+          Already have an account?
+          <a href="/admin/login">Sign in</a>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>

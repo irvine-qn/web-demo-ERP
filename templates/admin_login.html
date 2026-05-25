@@ -16,7 +16,10 @@
         <a href="/" class="navbar-logo">LUMINA ERP</a>
         <div>
           <div class="admin-kicker">Admin Access</div>
-          <h1>Sign in to Inventory</h1>
+          <h1>Sign in to Admin Portal</h1>
+          <p class="admin-login-sub">
+            After login you can open Storefront, Inventory, and Procurement.
+          </p>
         </div>
 
         {% if error %}
@@ -39,7 +42,6 @@
           <input
             type="password"
             name="password"
-            value="123456!"
             autocomplete="current-password"
             required
           />
@@ -51,7 +53,9 @@
         </button>
 
         <div class="admin-login-hint">
-          Test account: <strong>admin</strong> / <strong>123456!</strong>
+          Demo account: <strong>admin</strong> / <strong>123456!</strong>
+          <br />
+          New admin? <a href="/admin/register">Register here</a>
         </div>
       </form>
     </main>

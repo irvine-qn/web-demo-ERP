@@ -11,17 +11,8 @@
     <link rel="stylesheet" href="/static/css/style.css" />
   </head>
   <body class="admin-body">
-    <nav class="navbar">
-      <div class="navbar-left">
-        <a href="/" class="navbar-logo">LUMINA ERP</a>
-        <ul class="navbar-links">
-          <li><a href="/">Storefront</a></li>
-          <li><a href="/admin/inventory" class="active">Inventory</a></li>
-          <li><a href="/admin/procurement">Procurement</a></li>
-          <li><a href="/admin/logout">Logout</a></li>
-        </ul>
-      </div>
-    </nav>
+    {% set active_admin_nav = 'inventory' %}
+    {% include "_admin_nav.html" %}
 
     <main class="admin-page">
       <div class="admin-header">

@@ -11,39 +11,53 @@
     <link rel="stylesheet" href="/static/css/style.css" />
   </head>
   <body class="admin-body">
-    <nav class="navbar">
-      <div class="navbar-left">
-        <a href="/" class="navbar-logo">LUMINA ERP</a>
-        <ul class="navbar-links">
-          <li><a href="/">Storefront</a></li>
-          <li><a href="/admin/inventory">Inventory</a></li>
-          <li><a href="/admin/procurement" class="active">Procurement</a></li>
-          <li><a href="/admin/logout">Logout</a></li>
-        </ul>
-      </div>
-    </nav>
+    {% set active_admin_nav = 'procurement' %}
+    {% include "_admin_nav.html" %}
 
     <main class="admin-page">
       <div class="admin-header">
         <div>
-          <div class="admin-kicker">Procurement Flow</div>
+          <div class="admin-kicker">Procurement</div>
           <h1>Supplier Image Search</h1>
         </div>
       </div>
 
       <section class="procurement-shell">
         <form id="procurementForm" class="procurement-upload">
-          <label class="procurement-dropzone" for="supplierImageInput">
+          <div
+            class="procurement-dropzone"
+            id="supplierDropzone"
+            tabindex="0"
+            aria-label="Supplier image upload. Drag, drop, paste, or take a photo."
+          >
             <i class="bi bi-cloud-arrow-up"></i>
             <strong>Upload supplier reference image</strong>
             <span>Search similar supply options and handle exceptions</span>
+            <div class="dropzone-hints">
+              <span><i class="bi bi-arrows-move"></i> Drag &amp; drop</span>
+              <span><i class="bi bi-clipboard"></i> Paste (Ctrl+V)</span>
+            </div>
+            <div class="dropzone-actions">
+              <button type="button" class="dropzone-action-btn" data-action="browse">
+                <i class="bi bi-folder2-open"></i> Choose file
+              </button>
+              <button type="button" class="dropzone-action-btn" data-action="camera">
+                <i class="bi bi-camera"></i> Take photo
+              </button>
+            </div>
             <img id="supplierPreview" alt="Supplier preview" />
-          </label>
+          </div>
           <input
             type="file"
             id="supplierImageInput"
+            accept="image/jpeg,image/png,image/webp"
+            hidden
+          />
+          <input
+            type="file"
+            id="supplierCameraInput"
             accept="image/*"
-            required
+            capture="environment"
             hidden
           />
           <button type="submit" class="analyze-btn" id="supplierSearchBtn">
@@ -58,25 +72,28 @@
       </section>
     </main>
 
+    <script src="/static/js/image-upload-zone.js"></script>
     <script>
-      const supplierImageInput = document.getElementById("supplierImageInput");
-      const supplierPreview = document.getElementById("supplierPreview");
       const procurementForm = document.getElementById("procurementForm");
       const supplierGrid = document.getElementById("supplierGrid");
       const procurementStatus = document.getElementById("procurementStatus");
       const supplierSearchBtn = document.getElementById("supplierSearchBtn");
-      let selectedSupplierFile = null;
 
-      supplierImageInput.addEventListener("change", () => {
-        selectedSupplierFile = supplierImageInput.files[0];
-        if (!selectedSupplierFile) return;
-        supplierPreview.src = URL.createObjectURL(selectedSupplierFile);
-        supplierPreview.style.display = "block";
+      const supplierUploadZone = initImageUploadZone({
+        dropzone: document.getElementById("supplierDropzone"),
+        fileInput: document.getElementById("supplierImageInput"),
+        cameraInput: document.getElementById("supplierCameraInput"),
+        previewImg: document.getElementById("supplierPreview"),
+        statusEl: procurementStatus,
+        onFileSelected() {
+          procurementStatus.textContent =
+            "Image ready. Click Search Supplier Catalog to evaluate availability.";
+        },
       });
 
       procurementForm.addEventListener("submit", async (event) => {
         event.preventDefault();
-        const file = selectedSupplierFile || supplierImageInput.files[0];
+        const file = supplierUploadZone.getFile();
         if (!file) {
           alert("Please choose an image first.");
           return;
@@ -95,6 +112,11 @@
             body: formData,
           });
           const data = await response.json();
+
+          if (response.status === 401) {
+            window.location.href = "/admin/login";
+            return;
+          }
 
           if (data.status !== "success") {
             procurementStatus.textContent =

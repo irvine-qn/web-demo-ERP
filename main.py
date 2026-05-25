@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 from datetime import datetime
 from functools import lru_cache
 import hashlib
@@ -13,11 +13,18 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.encoders import jsonable_encoder
 import numpy as np
-from PIL import Image, ImageFilter, ImageStat
+from PIL import Image
 from pydantic import BaseModel
 import torch
 import uvicorn
-from database import get_all_products, get_categories, get_product_info
+from database import get_all_products, get_categories, get_product_by_id, get_product_info
+from feature_extractors import (
+    FUSED_DIM,
+    build_combined_vector,
+    cosine_similarity,
+    extract_color_histogram,
+    extract_hog_features,
+)
 from model_utils import get_classifier_model, get_model, transform
 from math import ceil
 
@@ -31,18 +38,25 @@ MODEL_PATH = "models/fashion_resnet50.pth"
 INDEX_PATH = "models/vector_db.index"
 NAMES_PATH = "models/product_ids.npy"
 
-model = get_model(MODEL_PATH)
-classifier_model = get_classifier_model(MODEL_PATH)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = get_model(MODEL_PATH).to(device)
+classifier_model = get_classifier_model(MODEL_PATH).to(device)
 index = faiss.read_index(INDEX_PATH)
+if index.d != FUSED_DIM:
+    raise RuntimeError(
+        f"FAISS index dimension ({index.d}) != fused features ({FUSED_DIM}). "
+        "Rebuild index: python load_dataset.py"
+    )
 image_names = np.load(NAMES_PATH)
 CLASS_NAMES = ["Dress", "Hat", "Outerwear", "Pant", "Shirt", "Shoes"]
 ITEMS_PER_PAGE = 50
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "123456!"
 ADMIN_COOKIE_NAME = "lumina_admin"
+ADMIN_ACCOUNTS = {
+    "admin": "123456!",
+}
 
 
 class OrderCreateRequest(BaseModel):
@@ -60,10 +74,7 @@ def _initial_atp(product_id):
 
 
 def _get_product_by_id(product_id):
-    for product in get_all_products():
-        if str(product["id"]) == str(product_id):
-            return product
-    return None
+    return get_product_by_id(product_id)
 
 
 def _ensure_inventory():
@@ -90,8 +101,24 @@ def _get_atp(product_id):
 
 def _with_inventory(product):
     item = dict(product)
-    item["atp"] = _get_atp(item["id"])
+    item["atp"] = int(_get_atp(str(item["id"])))
     return item
+
+
+def _enrich_customer_search_results(results):
+    """Attach real ATP for storefront image search (no procurement exceptions)."""
+    _ensure_inventory()
+    enriched = []
+    for rank, item in enumerate(results, start=1):
+        row = dict(item)
+        product_id = str(row["id"])
+        atp = int(_get_atp(product_id))
+        row["atp"] = atp
+        row["rank"] = rank
+        row["orderable"] = atp > 0
+        row["availability_label"] = f"ATP: {atp}" if atp > 0 else "Out of Stock"
+        enriched.append(row)
+    return enriched
 
 
 def _inventory_rows():
@@ -107,6 +134,25 @@ def _is_admin_logged_in(request):
 
 def _admin_login_redirect():
     return RedirectResponse(url="/admin/login", status_code=303)
+
+
+def _admin_portal_redirect():
+    return RedirectResponse(url="/admin", status_code=303)
+
+
+def _set_admin_session(response):
+    response.set_cookie(
+        key=ADMIN_COOKIE_NAME,
+        value="authenticated",
+        httponly=True,
+        samesite="lax",
+    )
+    return response
+
+
+def _verify_admin_credentials(username, password):
+    stored = ADMIN_ACCOUNTS.get(str(username).strip())
+    return stored is not None and stored == password
 
 
 def _price_to_int(price):
@@ -170,7 +216,7 @@ def _is_supported_image(file):
 
 def _save_validated_upload(file):
     if not _is_supported_image(file):
-        return None, "Äá»‹nh dáº¡ng file khÃ´ng há»— trá»£"
+        return None, "Dinh dang file khong ho tro"
 
     os.makedirs("static/uploads", exist_ok=True)
     upload_path = _safe_upload_path(file.filename)
@@ -184,7 +230,7 @@ def _save_validated_upload(file):
             if total_size > MAX_UPLOAD_BYTES:
                 buffer.close()
                 os.remove(upload_path)
-                return None, "áº¢nh vÆ°á»£t quÃ¡ dung lÆ°á»£ng há»— trá»£ 12MB"
+                return None, "Anh vuot qua dung luong ho tro 12MB"
             buffer.write(chunk)
 
     try:
@@ -192,7 +238,7 @@ def _save_validated_upload(file):
             img.verify()
     except Exception:
         os.remove(upload_path)
-        return None, "Äá»‹nh dáº¡ng file khÃ´ng há»— trá»£"
+        return None, "Dinh dang file khong ho tro"
 
     return upload_path, None
 
@@ -202,56 +248,33 @@ def _image_digest(image):
     return hashlib.sha256(normalized.tobytes()).hexdigest()
 
 
-def _extract_embedding(image):
-    img_t = transform(image).unsqueeze(0)
-    with torch.no_grad():
-        return model(img_t).flatten().cpu().numpy().astype("float32")
+def _extract_fused_vector(image):
+    return build_combined_vector(
+        image,
+        model=model,
+        transform=transform,
+        device=device,
+    )
 
 
 def _predict_category(image):
-    img_t = transform(image).unsqueeze(0)
+    img_t = transform(image).unsqueeze(0).to(device)
     with torch.no_grad():
         logits = classifier_model(img_t)
         probs = torch.softmax(logits, dim=1).squeeze(0)
         top_idx = int(torch.argmax(probs).item())
     return CLASS_NAMES[top_idx], float(probs[top_idx].item())
 
-def _visual_signature(image):
-    sample = image.convert("RGB").resize((96, 96))
-    pixels = np.asarray(sample).reshape(-1, 3).astype("float32")
-    max_channel = pixels.max(axis=1)
-    min_channel = pixels.min(axis=1)
-    saturation = (max_channel - min_channel) / np.maximum(max_channel, 1)
-    mask = (saturation > 0.08) & (max_channel < 248) & (min_channel > 5)
-    focused = pixels[mask] if mask.any() else pixels
-    color = focused.mean(axis=0) / 255.0
-
-    gray = sample.convert("L")
-    edges = gray.filter(ImageFilter.FIND_EDGES)
-    edge_stat = ImageStat.Stat(edges)
-    gray_stat = ImageStat.Stat(gray)
-    texture = np.array(
-        [
-            edge_stat.mean[0] / 255.0,
-            edge_stat.stddev[0] / 128.0,
-            gray_stat.stddev[0] / 128.0,
-        ],
-        dtype="float32",
-    )
-    return color.astype("float32"), texture
+def _similarity_from_ip(inner_product, min_ip, max_ip):
+    span = max(max_ip - min_ip, 1e-6)
+    return float((inner_product - min_ip) / span)
 
 
-def _similarity_from_distance(distance, min_distance, max_distance):
-    span = max(max_distance - min_distance, 1e-6)
-    return 1.0 - ((distance - min_distance) / span)
-
-
-def _color_similarity(a, b):
-    return float(1.0 - min(np.linalg.norm(a - b) / np.sqrt(3), 1.0))
-
-
-def _texture_similarity(a, b):
-    return float(1.0 - min(np.linalg.norm(a - b) / np.sqrt(3), 1.0))
+@lru_cache(maxsize=512)
+def _product_color_hog(image_path):
+    full_path = os.path.join("datasets", image_path.replace("/", os.sep))
+    with Image.open(full_path).convert("RGB") as image:
+        return extract_color_histogram(image), extract_hog_features(image)
 
 
 def _style_key(name, category):
@@ -264,11 +287,11 @@ def _style_key(name, category):
 
 def _predict_style(category_candidates):
     style_votes = {}
-    for distance, _, info in category_candidates[:24]:
+    for similarity, _, info in category_candidates[:24]:
         style = _style_key(info["name"], info["category"])
         if not style:
             continue
-        weight = 1.0 / (distance + 1e-6)
+        weight = max(float(similarity), 1e-6)
         style_votes[style] = style_votes.get(style, 0.0) + weight
     if not style_votes:
         return None
@@ -291,64 +314,58 @@ def _ranking_priority(style_match, color_score, shape_score, texture_score):
 
 
 @lru_cache(maxsize=512)
-def _product_signature(image_path):
-    full_path = os.path.join("datasets", image_path.replace("/", os.sep))
-    with Image.open(full_path).convert("RGB") as image:
-        return _visual_signature(image)
-
-
-@lru_cache(maxsize=512)
 def _product_digest(image_path):
     full_path = os.path.join("datasets", image_path.replace("/", os.sep))
     with Image.open(full_path).convert("RGB") as image:
         return _image_digest(image)
 
 
-def _absolute_distance_score(distance):
-    if distance <= 1e-4:
+def _absolute_cosine_score(cosine_sim):
+    if cosine_sim >= 0.92:
         return 1.0
-    if distance <= 80:
+    if cosine_sim >= 0.82:
         return 0.9
-    if distance <= 180:
+    if cosine_sim >= 0.72:
         return 0.72
-    if distance <= 300:
+    if cosine_sim >= 0.62:
         return 0.5
-    if distance <= 420:
+    if cosine_sim >= 0.52:
         return 0.28
     return 0.16
 
 
-def _is_out_of_domain(min_distance, category_confidence):
-    return category_confidence < 0.45 and min_distance > 320
+def _is_out_of_domain(max_similarity, category_confidence):
+    return category_confidence < 0.45 and max_similarity < 0.42
 
 
 def _rank_similar_products(image, top_k=9):
-    query_vec = _extract_embedding(image)
-    query_color, query_texture = _visual_signature(image)
+    query_vec = _extract_fused_vector(image)
+    query_color_hist = extract_color_histogram(image)
+    query_hog_hist = extract_hog_features(image)
     query_digest = _image_digest(image)
     predicted_category, category_confidence = _predict_category(image)
 
     search_k = index.ntotal
-    distances, indices = index.search(query_vec.reshape(1, -1), k=search_k)
+    similarities, indices = index.search(query_vec.reshape(1, -1), k=search_k)
 
     candidates = [
-        (float(distance), int(idx))
-        for distance, idx in zip(distances[0], indices[0])
+        (float(sim), int(idx))
+        for sim, idx in zip(similarities[0], indices[0])
         if idx >= 0
     ]
     if not candidates:
         return [], None
 
-    nearest_distance = candidates[0][0]
-    out_of_domain = _is_out_of_domain(nearest_distance, category_confidence)
+    best_similarity = candidates[0][0]
+    out_of_domain = _is_out_of_domain(best_similarity, category_confidence)
 
     category_candidates = []
     fallback_candidates = []
-    for distance, idx in candidates:
+    for similarity, idx in candidates:
         info = get_product_info(image_names[idx])
         if not info:
             continue
-        row = (distance, idx, info)
+        row = (similarity, idx, info)
         if info["category"] == predicted_category:
             category_candidates.append(row)
         else:
@@ -359,29 +376,28 @@ def _rank_similar_products(image, top_k=9):
         ranked_candidates = category_candidates + fallback_candidates
     predicted_style = _predict_style(category_candidates)
 
-    valid_distances = [distance for distance, _, _ in ranked_candidates]
-    min_dist = min(valid_distances) if valid_distances else 0
-    max_dist = max(valid_distances) if valid_distances else 1
+    valid_similarities = [sim for sim, _, _ in ranked_candidates]
+    min_sim = min(valid_similarities) if valid_similarities else 0.0
+    max_sim = max(valid_similarities) if valid_similarities else 1.0
     scored = []
     seen = set()
 
-    for distance, idx, info in ranked_candidates:
+    for similarity, idx, info in ranked_candidates:
         if not info or info["id"] in seen:
             continue
         seen.add(info["id"])
 
-        product_color, product_texture = _product_signature(info["image_path"])
+        product_color_hist, product_hog_hist = _product_color_hog(info["image_path"])
         exact_image_match = query_digest == _product_digest(info["image_path"])
 
-        vector_score = _similarity_from_distance(distance, min_dist, max_dist)
-        absolute_score = _absolute_distance_score(distance)
+        vector_score = _similarity_from_ip(similarity, min_sim, max_sim)
+        absolute_score = _absolute_cosine_score(similarity)
 
         category_score = 1.0 if info["category"] == predicted_category else 0.0
 
-        color_score = _color_similarity(query_color, product_color)
-
-        texture_score = _texture_similarity(query_texture, product_texture)
-        texture_penalty = 1.0 if abs(query_texture[0] - product_texture[0]) < 0.15 else 0.5
+        color_score = cosine_similarity(query_color_hist, product_color_hist)
+        texture_score = cosine_similarity(query_hog_hist, product_hog_hist)
+        texture_penalty = 1.0 if texture_score >= 0.55 else 0.5
         product_style = _style_key(info["name"], info["category"])
         style_match = bool(predicted_style and product_style == predicted_style)
         priority, shape_style_score = _ranking_priority(
@@ -395,16 +411,13 @@ def _rank_similar_products(image, top_k=9):
             final_score = 0.99
         else:
             base_score = (
-                0.46 * shape_style_score
-                + 0.32 * color_score
-                + 0.17 * texture_score
+                0.40 * shape_style_score
+                + 0.35 * color_score
+                + 0.20 * texture_score
                 + 0.05 * category_score
             ) * texture_penalty * (0.65 + 0.35 * absolute_score)
 
-            is_query_plain = query_texture[0] < 0.05
-            is_product_plain = product_texture[0] < 0.05
-
-            if is_query_plain != is_product_plain:
+            if color_score < 0.45 and texture_score < 0.45:
                 base_score *= 0.76
 
             priority_bands = {
@@ -431,7 +444,8 @@ def _rank_similar_products(image, top_k=9):
         item["detected_category"] = predicted_category
         item["category_confidence"] = round(category_confidence * 100, 1)
         item["detected_style"] = predicted_style
-        item["color"] = item.get("color")
+        item["color"] = item.get("color") or item.get("primary_color")
+        item["color_label"] = item.get("color_label")
         item["match"] = f"{int(round(max(1, min(99, final_score * 100))))}%"
         scored.append(item)
     
@@ -497,7 +511,17 @@ async def index_page(
             "search_query": q,
             "max_price": max_price,
             "page_url_prefix": _pagination_prefix(category, sort, q, max_price),
+            "is_admin": _is_admin_logged_in(request),
         },
+    )
+
+
+@app.get("/search-image", response_class=HTMLResponse)
+async def customer_search_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "customer_search.html",
+        {"is_admin": _is_admin_logged_in(request)},
     )
 
 
@@ -513,6 +537,17 @@ async def products_page(
     return await index_page(request, page, category, sort, q, max_price)
 
 
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard_page(request: Request):
+    if not _is_admin_logged_in(request):
+        return _admin_login_redirect()
+    return templates.TemplateResponse(
+        request,
+        "admin_dashboard.html",
+        {"active_admin_nav": ""},
+    )
+
+
 @app.get("/admin/inventory", response_class=HTMLResponse)
 async def admin_inventory_page(request: Request):
     if not _is_admin_logged_in(request):
@@ -523,23 +558,30 @@ async def admin_inventory_page(request: Request):
         {
             "orders": ORDERS,
             "inventory": _inventory_rows(),
+            "active_admin_nav": "inventory",
         },
     )
 
 
 @app.get("/admin/procurement", response_class=HTMLResponse)
 async def admin_procurement_page(request: Request):
-    return templates.TemplateResponse(request, "admin_procurement.html", {})
+    if not _is_admin_logged_in(request):
+        return _admin_login_redirect()
+    return templates.TemplateResponse(
+        request,
+        "admin_procurement.html",
+        {"active_admin_nav": "procurement"},
+    )
 
 
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
     if _is_admin_logged_in(request):
-        return RedirectResponse(url="/admin/inventory", status_code=303)
+        return _admin_portal_redirect()
     return templates.TemplateResponse(
         request,
         "admin_login.html",
-        {"error": None, "username": ADMIN_USERNAME},
+        {"error": None, "username": "admin"},
     )
 
 
@@ -549,15 +591,9 @@ async def admin_login(
     username: str = Form(...),
     password: str = Form(...),
 ):
-    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-        response = RedirectResponse(url="/admin/inventory", status_code=303)
-        response.set_cookie(
-            key=ADMIN_COOKIE_NAME,
-            value="authenticated",
-            httponly=True,
-            samesite="lax",
-        )
-        return response
+    if _verify_admin_credentials(username, password):
+        response = RedirectResponse(url="/admin", status_code=303)
+        return _set_admin_session(response)
 
     return templates.TemplateResponse(
         request,
@@ -570,11 +606,115 @@ async def admin_login(
     )
 
 
+@app.get("/admin/register", response_class=HTMLResponse)
+async def admin_register_page(request: Request):
+    if _is_admin_logged_in(request):
+        return _admin_portal_redirect()
+    return templates.TemplateResponse(
+        request,
+        "admin_register.html",
+        {"error": None, "username": ""},
+    )
+
+
+@app.post("/admin/register", response_class=HTMLResponse)
+async def admin_register(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    username = str(username).strip()
+    if len(username) < 3:
+        return templates.TemplateResponse(
+            request,
+            "admin_register.html",
+            {"error": "Username must be at least 3 characters.", "username": username},
+            status_code=400,
+        )
+    if password != confirm_password:
+        return templates.TemplateResponse(
+            request,
+            "admin_register.html",
+            {"error": "Passwords do not match.", "username": username},
+            status_code=400,
+        )
+    if len(password) < 6:
+        return templates.TemplateResponse(
+            request,
+            "admin_register.html",
+            {"error": "Password must be at least 6 characters.", "username": username},
+            status_code=400,
+        )
+    if username in ADMIN_ACCOUNTS:
+        return templates.TemplateResponse(
+            request,
+            "admin_register.html",
+            {"error": "Username already exists.", "username": username},
+            status_code=409,
+        )
+
+    ADMIN_ACCOUNTS[username] = password
+    response = RedirectResponse(url="/admin", status_code=303)
+    return _set_admin_session(response)
+
+
 @app.get("/admin/logout")
 async def admin_logout():
-    response = RedirectResponse(url="/admin/login", status_code=303)
+    response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie(ADMIN_COOKIE_NAME)
     return response
+
+
+@app.post("/api/search-image")
+async def customer_search_image_api(file: UploadFile = File(...)):
+    upload_path, error = _save_validated_upload(file)
+    if error:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "message": error, "results": []},
+        )
+
+    image = Image.open(upload_path).convert("RGB")
+    results, predicted_category = _rank_similar_products(image, top_k=9)
+    results = _enrich_customer_search_results(results)
+
+    if not results:
+        return JSONResponse(
+            content=jsonable_encoder(
+                {
+                    "status": "no-results",
+                    "message": "No matching products found.",
+                    "results": [],
+                }
+            )
+        )
+
+    low_confidence = all(
+        float(item.get("category_confidence", 0)) < 45 for item in results
+    )
+    if low_confidence:
+        return JSONResponse(
+            content=jsonable_encoder(
+                {
+                    "status": "no-fashion",
+                    "message": "We cannot find fashion products matching this image.",
+                    "results": [],
+                }
+            )
+        )
+
+    return JSONResponse(
+        content=jsonable_encoder(
+            {
+                "status": "success",
+                "message": f"Found {len(results)} matching products"
+                + (f" in {predicted_category}" if predicted_category else ""),
+                "detected_category": predicted_category,
+                "results": results,
+            }
+        )
+    )
 
 
 @app.post("/api/orders")
@@ -636,7 +776,12 @@ async def get_inventory_api():
 
 
 @app.post("/api/procurement/search-image")
-async def procurement_search_image_api(file: UploadFile = File(...)):
+async def procurement_search_image_api(request: Request, file: UploadFile = File(...)):
+    if not _is_admin_logged_in(request):
+        return JSONResponse(
+            status_code=401,
+            content={"status": "error", "message": "Admin login required", "results": []},
+        )
     await asyncio.sleep(1.1)
     upload_path, error = _save_validated_upload(file)
     if error:

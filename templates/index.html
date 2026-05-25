@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LUMINA - Fashion ERP Storefront</title>
+    <title>LUMINA - Fashion Store</title>
     <meta
       name="description"
-      content="Lumina ERP storefront with catalog filtering, inventory reservation, and procurement image search."
+      content="Shop fashion with visual image search and instant ordering."
     />
     <link
       rel="stylesheet"
@@ -19,9 +19,15 @@
       <div class="navbar-left">
         <a href="/" class="navbar-logo">LUMINA</a>
         <ul class="navbar-links">
+          <li><a href="/" class="active">Shop</a></li>
+        </ul>
+        {% if is_admin %}
+        <ul class="navbar-links navbar-links-admin">
+          <li><a href="/admin">Admin</a></li>
           <li><a href="/admin/inventory">Inventory</a></li>
           <li><a href="/admin/procurement">Procurement</a></li>
         </ul>
+        {% endif %}
       </div>
       <div class="navbar-center">
         <div class="search-box">
@@ -32,20 +38,21 @@
             id="textSearch"
             value="{{ search_query }}"
           />
-          <button
-            class="camera-btn"
-            type="button"
-            id="procurementSearchBtn"
-            title="Procurement image search"
-          >
+          <a class="camera-btn" href="/search-image" title="Search by image">
             <i class="bi bi-camera"></i>
-          </button>
+          </a>
         </div>
       </div>
       <div class="navbar-right">
-        <button class="icon-btn" type="button" title="Admin">
-          <i class="bi bi-person"></i>
-        </button>
+        {% if is_admin %}
+        <a href="/admin" class="admin-nav-chip" title="Admin portal">
+          <i class="bi bi-speedometer2"></i> Admin
+        </a>
+        {% else %}
+        <a href="/admin/login" class="admin-nav-chip" title="Admin sign in">
+          <i class="bi bi-person-lock"></i> Admin
+        </a>
+        {% endif %}
         <button class="icon-btn" type="button" title="Orders">
           <i class="bi bi-bag"></i>
           <span class="cart-badge">0</span>
@@ -186,16 +193,15 @@
         <div class="footer-brand">
           <h3>LUMINA</h3>
           <p>
-            Fashion ERP demo for visual product search, stock reservation, and
-            procurement exception handling.
+            Customer storefront: visual search and online ordering for fashion
+            products.
           </p>
         </div>
         <div class="footer-col">
-          <h4>Demo</h4>
+          <h4>Shop</h4>
           <ul>
-            <li><a href="/">Storefront</a></li>
-            <li><a href="/admin/inventory">Inventory</a></li>
-            <li><a href="/admin/procurement">Procurement</a></li>
+            <li><a href="/">All products</a></li>
+            <li><a href="/search-image">Image search</a></li>
           </ul>
         </div>
         <div class="footer-col">
@@ -207,19 +213,15 @@
           </ul>
         </div>
         <div class="footer-col">
-          <h4>Admin</h4>
+          <h4>Staff</h4>
           <ul>
-            <li><a href="/admin/login">Login</a></li>
-            <li><a href="/admin/logout">Logout</a></li>
+            <li><a href="/admin/login">Admin login</a></li>
+            <li><a href="/admin/register">Admin register</a></li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
-        <span>2026 LUMINA ERP Demo</span>
-        <div class="footer-bottom-links">
-          <a href="/admin/procurement">Supplier Search</a>
-          <a href="/admin/inventory">Stock Ledger</a>
-        </div>
+        <span>2026 LUMINA Fashion Store</span>
       </div>
     </footer>
 
@@ -229,12 +231,6 @@
       const categoryFilter = document.getElementById("categoryFilter");
       const priceSlider = document.getElementById("priceSlider");
       const sortBy = document.getElementById("sortBy");
-      const procurementSearchBtn = document.getElementById("procurementSearchBtn");
-
-      procurementSearchBtn.addEventListener("click", () => {
-        window.location.href = "/admin/procurement";
-      });
-
       function applyCatalogFilters(updates = {}) {
         const params = new URLSearchParams(window.location.search);
         Object.entries(updates).forEach(([key, value]) => {
@@ -269,10 +265,7 @@
         }
       });
 
-      productGrid.addEventListener("click", async (event) => {
-        const button = event.target.closest(".catalog-order-btn");
-        if (!button) return;
-
+      async function placeOrder(button) {
         button.disabled = true;
         const originalText = button.textContent;
         button.textContent = "Reserving...";
@@ -304,7 +297,13 @@
           button.disabled = false;
           button.textContent = originalText;
         }
+      }
+
+      productGrid.addEventListener("click", (event) => {
+        const button = event.target.closest(".catalog-order-btn");
+        if (button) placeOrder(button);
       });
+
     </script>
   </body>
 </html>

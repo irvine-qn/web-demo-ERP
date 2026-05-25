@@ -1,3 +1,5 @@
+import asyncio
+from datetime import datetime
 from functools import lru_cache
 import hashlib
 import os
@@ -5,13 +7,14 @@ import re
 from urllib.parse import urlencode
 from uuid import uuid4
 import faiss
-from fastapi import FastAPI, File, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.encoders import jsonable_encoder
 import numpy as np
 from PIL import Image, ImageFilter, ImageStat
+from pydantic import BaseModel
 import torch
 import uvicorn
 from database import get_all_products, get_categories, get_product_info
@@ -37,6 +40,73 @@ ITEMS_PER_PAGE = 50
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "123456!"
+ADMIN_COOKIE_NAME = "lumina_admin"
+
+
+class OrderCreateRequest(BaseModel):
+    product_id: str
+    quantity: int = 1
+
+
+ORDERS = []
+INVENTORY_LEDGER = {}
+
+
+def _initial_atp(product_id):
+    digits = int("".join(ch for ch in str(product_id) if ch.isdigit()) or 1)
+    return 6 + (digits % 12)
+
+
+def _get_product_by_id(product_id):
+    for product in get_all_products():
+        if str(product["id"]) == str(product_id):
+            return product
+    return None
+
+
+def _ensure_inventory():
+    if INVENTORY_LEDGER:
+        return
+    for product in get_all_products():
+        INVENTORY_LEDGER[str(product["id"])] = {
+            "sku": str(product["id"]),
+            "name": product["name"],
+            "category": product["category"],
+            "price": product["price"],
+            "image": product["image"],
+            "atp": _initial_atp(product["id"]),
+            "reserved": 0,
+            "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
+
+def _get_atp(product_id):
+    _ensure_inventory()
+    item = INVENTORY_LEDGER.get(str(product_id))
+    return item["atp"] if item else 0
+
+
+def _with_inventory(product):
+    item = dict(product)
+    item["atp"] = _get_atp(item["id"])
+    return item
+
+
+def _inventory_rows():
+    _ensure_inventory()
+    rows = list(INVENTORY_LEDGER.values())
+    rows.sort(key=lambda item: item["sku"])
+    return rows
+
+
+def _is_admin_logged_in(request):
+    return request.cookies.get(ADMIN_COOKIE_NAME) == "authenticated"
+
+
+def _admin_login_redirect():
+    return RedirectResponse(url="/admin/login", status_code=303)
 
 
 def _price_to_int(price):
@@ -460,6 +530,72 @@ async def products_page(
     return await index_page(request, page, category, sort, q, max_price)
 
 
+@app.get("/admin/inventory", response_class=HTMLResponse)
+async def admin_inventory_page(request: Request):
+    if not _is_admin_logged_in(request):
+        return _admin_login_redirect()
+    return templates.TemplateResponse(
+        request,
+        "admin_inventory.html",
+        {
+            "orders": ORDERS,
+            "inventory": _inventory_rows(),
+        },
+    )
+
+
+@app.get("/admin/procurement", response_class=HTMLResponse)
+async def admin_procurement_page(request: Request):
+    if not _is_admin_logged_in(request):
+        return _admin_login_redirect()
+    return templates.TemplateResponse(request, "admin_procurement.html", {})
+
+
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login_page(request: Request):
+    if _is_admin_logged_in(request):
+        return RedirectResponse(url="/admin/inventory", status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "admin_login.html",
+        {"error": None, "username": ADMIN_USERNAME},
+    )
+
+
+@app.post("/admin/login", response_class=HTMLResponse)
+async def admin_login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+):
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        response = RedirectResponse(url="/admin/inventory", status_code=303)
+        response.set_cookie(
+            key=ADMIN_COOKIE_NAME,
+            value="authenticated",
+            httponly=True,
+            samesite="lax",
+        )
+        return response
+
+    return templates.TemplateResponse(
+        request,
+        "admin_login.html",
+        {
+            "error": "Invalid admin username or password.",
+            "username": username,
+        },
+        status_code=401,
+    )
+
+
+@app.get("/admin/logout")
+async def admin_logout():
+    response = RedirectResponse(url="/admin/login", status_code=303)
+    response.delete_cookie(ADMIN_COOKIE_NAME)
+    return response
+
+
 @app.post("/search", response_class=HTMLResponse)
 async def search(request: Request, file: UploadFile = File(...)):
     upload_path, error = _save_validated_upload(file)
@@ -486,6 +622,7 @@ async def search(request: Request, file: UploadFile = File(...)):
 
 @app.post("/api/search-image")
 async def search_image_api(file: UploadFile = File(...)):
+    await asyncio.sleep(1.2)
     upload_path, error = _save_validated_upload(file)
     if error:
         return JSONResponse(
@@ -496,6 +633,7 @@ async def search_image_api(file: UploadFile = File(...)):
     image = Image.open(upload_path).convert("RGB")
 
     results, predicted_category = _rank_similar_products(image, top_k=9)
+    results = [_with_inventory(item) for item in results]
     # Nếu không có sản phẩm hoặc out-of-domain (ảnh không phải thời trang)
     if not results or (predicted_category is None or all(float(item.get("category_confidence", 0)) < 45 for item in results)):
         return JSONResponse(
@@ -514,6 +652,112 @@ async def search_image_api(file: UploadFile = File(...)):
             + (f" in the {predicted_category} category" if predicted_category else ""),
             "results": results,
         })
+    )
+
+
+@app.post("/api/orders")
+async def create_order(payload: OrderCreateRequest):
+    _ensure_inventory()
+    product_id = str(payload.product_id)
+    quantity = max(1, int(payload.quantity or 1))
+    inventory_item = INVENTORY_LEDGER.get(product_id)
+    product = _get_product_by_id(product_id)
+
+    if not product or not inventory_item:
+        return JSONResponse(
+            status_code=404,
+            content={"status": "error", "message": "Product not found"},
+        )
+    if inventory_item["atp"] < quantity:
+        return JSONResponse(
+            status_code=409,
+            content={"status": "error", "message": "Insufficient ATP"},
+        )
+
+    inventory_item["atp"] -= quantity
+    inventory_item["reserved"] += quantity
+    inventory_item["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    order = {
+        "order_id": f"SO-{len(ORDERS) + 1:04d}",
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "sku": product_id,
+        "product_name": product["name"],
+        "category": product["category"],
+        "quantity": quantity,
+        "price": product["price"],
+        "status": "Reserved",
+        "remaining_atp": inventory_item["atp"],
+    }
+    ORDERS.insert(0, order)
+
+    return JSONResponse(
+        content=jsonable_encoder(
+            {
+                "status": "success",
+                "message": f"Created {order['order_id']} and reserved stock",
+                "order": order,
+                "inventory": inventory_item,
+            }
+        )
+    )
+
+
+@app.get("/api/orders")
+async def get_orders_api():
+    return JSONResponse(content=jsonable_encoder({"orders": ORDERS}))
+
+
+@app.get("/api/inventory")
+async def get_inventory_api():
+    return JSONResponse(content=jsonable_encoder({"inventory": _inventory_rows()}))
+
+
+@app.post("/api/procurement/search-image")
+async def procurement_search_image_api(file: UploadFile = File(...)):
+    await asyncio.sleep(1.1)
+    upload_path, error = _save_validated_upload(file)
+    if error:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "message": error, "results": []},
+        )
+
+    image = Image.open(upload_path).convert("RGB")
+    results, predicted_category = _rank_similar_products(image, top_k=4)
+    results = [_with_inventory(item) for item in results]
+
+    if not results:
+        return JSONResponse(
+            content={
+                "status": "no-results",
+                "message": "No supplier matches found.",
+                "results": [],
+            }
+        )
+
+    for index_num, item in enumerate(results):
+        item["supplier"] = f"Lumina Supplier {index_num + 1}"
+        item["rank"] = index_num + 1
+        if index_num == 0:
+            item["atp"] = 0
+            item["availability_label"] = "Out of Stock"
+            item["orderable"] = False
+            item["suggested_alternative"] = False
+        else:
+            item["availability_label"] = f"ATP: {item['atp']}"
+            item["orderable"] = True
+            item["suggested_alternative"] = True
+
+    return JSONResponse(
+        content=jsonable_encoder(
+            {
+                "status": "success",
+                "message": "Supplier matches returned with exception handling.",
+                "detected_category": predicted_category,
+                "results": results,
+            }
+        )
     )
 
 

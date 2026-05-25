@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LUMINA ERP - Procurement</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body class="admin-body">
+    <nav class="navbar">
+      <div class="navbar-left">
+        <a href="/" class="navbar-logo">LUMINA ERP</a>
+        <ul class="navbar-links">
+          <li><a href="/">Storefront</a></li>
+          <li><a href="/admin/inventory">Inventory</a></li>
+          <li><a href="/admin/procurement" class="active">Procurement</a></li>
+          <li><a href="/admin/logout">Logout</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main class="admin-page">
+      <div class="admin-header">
+        <div>
+          <div class="admin-kicker">Procurement Flow</div>
+          <h1>Supplier Image Search</h1>
+        </div>
+      </div>
+
+      <section class="procurement-shell">
+        <form id="procurementForm" class="procurement-upload">
+          <label class="procurement-dropzone" for="supplierImageInput">
+            <i class="bi bi-cloud-arrow-up"></i>
+            <strong>Upload supplier reference image</strong>
+            <span>Search similar supply options and handle exceptions</span>
+            <img id="supplierPreview" alt="Supplier preview" />
+          </label>
+          <input
+            type="file"
+            id="supplierImageInput"
+            accept="image/*"
+            required
+            hidden
+          />
+          <button type="submit" class="analyze-btn" id="supplierSearchBtn">
+            <i class="bi bi-search"></i>&nbsp; Search Supplier Catalog
+          </button>
+        </form>
+
+        <div class="procurement-status" id="procurementStatus">
+          Upload an image to evaluate supplier availability.
+        </div>
+        <div class="supplier-grid" id="supplierGrid"></div>
+      </section>
+    </main>
+
+    <script>
+      const supplierImageInput = document.getElementById("supplierImageInput");
+      const supplierPreview = document.getElementById("supplierPreview");
+      const procurementForm = document.getElementById("procurementForm");
+      const supplierGrid = document.getElementById("supplierGrid");
+      const procurementStatus = document.getElementById("procurementStatus");
+      const supplierSearchBtn = document.getElementById("supplierSearchBtn");
+      let selectedSupplierFile = null;
+
+      supplierImageInput.addEventListener("change", () => {
+        selectedSupplierFile = supplierImageInput.files[0];
+        if (!selectedSupplierFile) return;
+        supplierPreview.src = URL.createObjectURL(selectedSupplierFile);
+        supplierPreview.style.display = "block";
+      });
+
+      procurementForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const file = selectedSupplierFile || supplierImageInput.files[0];
+        if (!file) {
+          alert("Please choose an image first.");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+        supplierSearchBtn.disabled = true;
+        supplierSearchBtn.innerHTML =
+          '<span class="spinner-border-sm"></span>&nbsp; Searching suppliers...';
+        procurementStatus.textContent = "Checking supplier ATP and alternatives...";
+
+        try {
+          const response = await fetch("/api/procurement/search-image", {
+            method: "POST",
+            body: formData,
+          });
+          const data = await response.json();
+
+          if (data.status !== "success") {
+            procurementStatus.textContent =
+              data.message || "No supplier matches found.";
+            supplierGrid.innerHTML = "";
+            return;
+          }
+
+          procurementStatus.textContent =
+            "Top match is unavailable. Suggested alternatives are highlighted for cross-selling.";
+          supplierGrid.innerHTML = data.results
+            .map(
+              (item) => `
+                <article class="supplier-card ${item.suggested_alternative ? "suggested" : "blocked"}">
+                  ${
+                    item.suggested_alternative
+                      ? '<div class="suggested-label">Suggested Alternatives</div>'
+                      : ""
+                  }
+                  <div class="supplier-rank">Top ${item.rank}</div>
+                  <img src="${item.image}" alt="${item.name}" />
+                  <div class="supplier-card-body">
+                    <div class="supplier-meta">${item.supplier} - SKU ${item.id}</div>
+                    <h2>${item.name}</h2>
+                    <div class="supplier-price">${item.price}</div>
+                    <div class="supplier-footer">
+                      <span class="${item.atp === 0 ? "out-stock-pill" : "atp-pill"}">
+                        ${item.availability_label}
+                      </span>
+                      ${
+                        item.orderable
+                          ? '<button type="button" class="supplier-order-btn">Order</button>'
+                          : ""
+                      }
+                    </div>
+                  </div>
+                </article>
+              `,
+            )
+            .join("");
+        } catch (error) {
+          procurementStatus.textContent = "Supplier API connection failed.";
+        } finally {
+          supplierSearchBtn.disabled = false;
+          supplierSearchBtn.innerHTML =
+            '<i class="bi bi-search"></i>&nbsp; Search Supplier Catalog';
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -19,6 +19,10 @@
     <nav class="navbar" id="mainNavbar">
       <div class="navbar-left">
         <a href="/" class="navbar-logo">LUMINA</a>
+        <ul class="navbar-links">
+          <li><a href="/admin/inventory">Inventory</a></li>
+          <li><a href="/admin/procurement">Procurement</a></li>
+        </ul>
       </div>
       <div class="navbar-center">
         <div class="search-box">
@@ -519,15 +523,16 @@
               } else {
                 data.results.forEach((item) => {
                   aiGrid.innerHTML += `
-                                <div class="ai-result-card">
+                                <div class="ai-result-card" data-product-id="${item.id}">
                                     <span class="ai-match-badge">Khớp ${item.match}</span>
                                         <img src="${item.image}" alt="${item.name}" style="width:100%; aspect-ratio:3/4; object-fit:cover;">
                                     <div class="ai-result-info">
                                         <h4>${item.name}</h4>
                                         <div class="meta">${item.category} · ${item.gender_style}</div>
                                         <div class="price">${item.price}</div>
+                                        <div class="stock-note" data-atp-badge="${item.id}">ATP: ${item.atp}</div>
                                         <div class="ai-result-actions">
-                                          <button type="button" class="buy-now-btn">Buy Now</button>
+                                          <button type="button" class="buy-now-btn order-now-btn" data-product-id="${item.id}" ${item.atp <= 0 ? "disabled" : ""}>Order Now</button>
                                           <button type="button" class="add-cart-btn">Add to cart</button>
                                         </div>
                                     </div>
@@ -539,7 +544,7 @@
               resultArea.scrollIntoView({ behavior: "smooth", block: "start" });
             } else if (data.status === "no-fashion") {
               aiGrid.innerHTML = `<div class="empty-state">We cannot find any products matching this in our fashion category.</div>`;
-              aiResults.classList.add("show");
+              resultArea.classList.add("show");
               resultArea.scrollIntoView({ behavior: "smooth", block: "start" });
             } else {
               alert(data.message || "Định dạng file không hỗ trợ");
@@ -551,6 +556,50 @@
             btn.disabled = false;
           }
         });
+
+      aiGrid.addEventListener("click", async (event) => {
+        const button = event.target.closest(".order-now-btn");
+        if (!button) return;
+
+        button.disabled = true;
+        const originalText = button.textContent;
+        button.textContent = "Reserving...";
+
+        try {
+          const response = await fetch("/api/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              product_id: button.dataset.productId,
+              quantity: 1,
+            }),
+          });
+          const data = await response.json();
+
+          if (!response.ok || data.status !== "success") {
+            alert(data.message || "Cannot create order.");
+            button.disabled = false;
+            button.textContent = originalText;
+            return;
+          }
+
+          const badge = document.querySelector(
+            `[data-atp-badge="${button.dataset.productId}"]`,
+          );
+          if (badge) {
+            badge.textContent = `ATP: ${data.inventory.atp}`;
+          }
+          const cartBadge = document.querySelector(".cart-badge");
+          cartBadge.textContent = Number(cartBadge.textContent || 0) + 1;
+          aiMessage.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${data.message}. Remaining ATP: ${data.inventory.atp}`;
+          button.textContent = data.inventory.atp > 0 ? "Order Now" : "Out of Stock";
+          button.disabled = data.inventory.atp <= 0;
+        } catch (error) {
+          alert("Order API connection failed.");
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+      });
     </script>
   </body>
 </html>

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LUMINA ERP - Inventory</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body class="admin-body">
+    <nav class="navbar">
+      <div class="navbar-left">
+        <a href="/" class="navbar-logo">LUMINA ERP</a>
+        <ul class="navbar-links">
+          <li><a href="/">Storefront</a></li>
+          <li><a href="/admin/inventory" class="active">Inventory</a></li>
+          <li><a href="/admin/procurement">Procurement</a></li>
+          <li><a href="/admin/logout">Logout</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main class="admin-page">
+      <div class="admin-header">
+        <div>
+          <div class="admin-kicker">Admin Dashboard</div>
+          <h1>Inventory Control</h1>
+        </div>
+        <button type="button" class="admin-refresh-btn" id="refreshBtn">
+          <i class="bi bi-arrow-clockwise"></i>
+          Refresh
+        </button>
+      </div>
+
+      <section class="admin-section">
+        <div class="admin-section-title">
+          <h2>Order History</h2>
+          <span id="orderCount">{{ orders|length }} orders</span>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Created</th>
+                <th>SKU</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Status</th>
+                <th>Remaining ATP</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+              {% for order in orders %}
+              <tr>
+                <td>{{ order.order_id }}</td>
+                <td>{{ order.created_at }}</td>
+                <td>{{ order.sku }}</td>
+                <td>{{ order.product_name }}</td>
+                <td>{{ order.quantity }}</td>
+                <td><span class="status-pill">{{ order.status }}</span></td>
+                <td>{{ order.remaining_atp }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="admin-empty" id="ordersEmpty">No orders yet</div>
+        </div>
+      </section>
+
+      <section class="admin-section">
+        <div class="admin-section-title">
+          <h2>Inventory Ledger</h2>
+          <span>Stock Reservation View</span>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>ATP</th>
+                <th>Reserved</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody">
+              {% for item in inventory %}
+              <tr>
+                <td>{{ item.sku }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.category }}</td>
+                <td><span class="atp-pill">{{ item.atp }}</span></td>
+                <td>{{ item.reserved }}</td>
+                <td>{{ item.updated_at }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const ordersTableBody = document.getElementById("ordersTableBody");
+      const inventoryTableBody = document.getElementById("inventoryTableBody");
+      const ordersEmpty = document.getElementById("ordersEmpty");
+      const orderCount = document.getElementById("orderCount");
+
+      function renderOrders(orders) {
+        orderCount.textContent = `${orders.length} orders`;
+        ordersEmpty.style.display = orders.length ? "none" : "flex";
+        ordersTableBody.innerHTML = orders
+          .map(
+            (order) => `
+              <tr>
+                <td>${order.order_id}</td>
+                <td>${order.created_at}</td>
+                <td>${order.sku}</td>
+                <td>${order.product_name}</td>
+                <td>${order.quantity}</td>
+                <td><span class="status-pill">${order.status}</span></td>
+                <td>${order.remaining_atp}</td>
+              </tr>
+            `,
+          )
+          .join("");
+      }
+
+      function renderInventory(inventory) {
+        inventoryTableBody.innerHTML = inventory
+          .map(
+            (item) => `
+              <tr class="${item.reserved > 0 ? "row-updated" : ""}">
+                <td>${item.sku}</td>
+                <td>${item.name}</td>
+                <td>${item.category}</td>
+                <td><span class="atp-pill">${item.atp}</span></td>
+                <td>${item.reserved}</td>
+                <td>${item.updated_at}</td>
+              </tr>
+            `,
+          )
+          .join("");
+      }
+
+      async function refreshDashboard() {
+        const [ordersResponse, inventoryResponse] = await Promise.all([
+          fetch("/api/orders"),
+          fetch("/api/inventory"),
+        ]);
+        const ordersData = await ordersResponse.json();
+        const inventoryData = await inventoryResponse.json();
+        renderOrders(ordersData.orders || []);
+        renderInventory(inventoryData.inventory || []);
+      }
+
+      document
+        .getElementById("refreshBtn")
+        .addEventListener("click", refreshDashboard);
+      refreshDashboard();
+      setInterval(refreshDashboard, 2500);
+    </script>
+  </body>
+</html>

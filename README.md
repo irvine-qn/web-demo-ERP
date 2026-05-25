@@ -1,137 +1,265 @@
-# TOPIC: Utilizing Image Processing Model into ERP Systems for Product Searching in Fashion E-Commerce Platform
+# Lumina Fashion ERP Search System
 
-# Project Name: Lumina Fashion ERP Search System
-
-## Tổng Quan Dự Án
-
-LUMINA là demo ERP/e-commerce cho thời trang, tập trung vào tìm kiếm sản phẩm bằng hình ảnh. Người dùng có thể upload, kéo thả hoặc paste ảnh trang phục; hệ thống phân tích ảnh và trả về các sản phẩm có kiểu dáng, màu sắc và họa tiết gần nhất trong catalog.
+Demo ERP/e-commerce cho ngành thời trang, kết hợp FastAPI, ResNet50 và FAISS để tìm sản phẩm bằng hình ảnh. Hệ thống hiện dùng file CSV làm nguồn dữ liệu chính, phù hợp để chạy demo local và quay video báo cáo.
 
 ## Tính Năng Chính
 
-- AI Image Search: tìm sản phẩm bằng ảnh từ file, drag/drop hoặc clipboard.
-- Visual Ranking: ưu tiên kết quả theo thứ tự `kiểu dáng + màu sắc`, sau đó `màu sắc`, rồi mới đến `kiểu dáng`.
-- Match Score thực tế: ảnh trùng dataset được giới hạn tối đa 99%, không hiển thị 100% vì ảnh có thể bị nén, mờ, resize hoặc sai khác nhỏ.
-- Category Filtering: lọc theo danh mục sản phẩm và khoảng giá.
-- Sorting/Pagination: sắp xếp theo giá, tên, danh mục; phân trang 50 sản phẩm/trang.
-- Responsive UI: desktop 5 cột, tablet 3 cột, mobile 2 cột; kết quả AI giữ layout riêng.
-- Color Attribute: lưu và hiển thị màu sắc sản phẩm (color) trong metadata, cho phép lọc và ranking theo màu sắc.
-- Edge Case Handling: chặn file không hỗ trợ, giới hạn upload 12MB, giảm điểm ảnh ngoài domain thời trang, hiển thị `No products found` khi database rỗng.
+- Storefront catalog: xem danh sách sản phẩm, lọc theo category, khoảng giá, tìm kiếm text, sắp xếp và phân trang.
+- AI Image Search: upload, kéo thả hoặc paste ảnh để tìm sản phẩm tương tự.
+- Visual ranking: kết hợp category, form dáng, màu sắc, texture và style name để xếp hạng kết quả.
+- ATP badge: kết quả AI hiển thị số lượng tồn khả dụng `ATP`.
+- Sales flow: nút `Order Now` tạo đơn hàng demo và tự động trừ ATP.
+- Admin Inventory Dashboard: xem `Order History` và `Inventory Ledger`, tự refresh để chứng minh stock reservation.
+- Procurement flow: upload ảnh tìm nguồn hàng supplier, hardcode Top 1 `Out of Stock`, highlight Top 2-4 là `Suggested Alternatives`.
+- Admin login: bảo vệ các trang admin bằng tài khoản test.
+
+## Tài Khoản Admin Test
+
+Truy cập:
+
+```text
+http://127.0.0.1:8000/admin/login
+```
+
+Thông tin đăng nhập:
+
+```text
+Username: admin
+Password: 123456!
+```
 
 ## Công Nghệ Sử Dụng
 
-- Backend: FastAPI, Python.
-- AI/Deep Learning: PyTorch, Torchvision.
-- Vector Search: FAISS.
-- Image Processing: ResNet50, Pillow.
-- Frontend: HTML5, CSS3, Vanilla JavaScript.
-- Database: CSV metadata và FAISS index.
+- Backend: FastAPI, Python
+- AI/Deep Learning: PyTorch, Torchvision
+- Feature extractor/classifier: ResNet50
+- Vector search: FAISS
+- Image processing: Pillow
+- Frontend: HTML, CSS, Vanilla JavaScript, Jinja2 templates
+- Data source: `datasets/products.csv` và FAISS index local
 
-## Chi Tiết Mô Hình AI
+## Luồng Demo
 
-Hệ thống dùng ResNet50 đã fine-tune cho 6 nhóm sản phẩm: `Dress`, `Hat`, `Outerwear`, `Pant`, `Shirt`, `Shoes`.
+### 1. Sales Flow - Storefront
 
-Luồng hoạt động:
+URL:
 
-1. Ảnh upload được resize/normalize giống lúc train.
-2. ResNet50 classifier dự đoán category sản phẩm.
-3. Feature extractor lấy embedding 2048 chiều từ ResNet50.
-4. FAISS tìm các sản phẩm gần nhất trong vector database.
-5. Backend tính thêm chữ ký thị giác bằng Pillow:
-   - màu chủ đạo từ RGB mean có lọc saturation (ghi vào trường color trong products.csv),
-   - texture từ edge/contrast để phân biệt trơn và họa tiết,
-   - style key từ tên sản phẩm trong `products.csv`.
-6. Ranking cuối cùng ưu tiên:
-   - category/shape đúng,
-   - màu sắc giống (dựa trên trường color),
-   - texture/họa tiết giống,
-   - style name giống.
+```text
+http://127.0.0.1:8000/
+```
 
-Ảnh không phải thời trang thường có confidence category thấp và khoảng cách FAISS cao, nên điểm match bị giới hạn thấp thay vì bị đẩy lên cao bởi chuẩn hóa tương đối.
+Các bước demo:
 
-## Fine-Tune Model
+1. Mở tab `AI Image Search`.
+2. Upload một ảnh sản phẩm thời trang.
+3. Backend giả lập thời gian xử lý khoảng 1-2 giây.
+4. Kết quả trả về dạng grid sản phẩm, mỗi sản phẩm có badge `ATP: <số lượng>`.
+5. Bấm `Order Now`.
+6. API tạo đơn hàng mới và giảm ATP của SKU đó đi 1.
 
-ResNet50 được fine-tune bằng transfer learning:
+API liên quan:
 
-1. Dùng backbone ResNet50 pre-trained.
-2. Thay fully connected layer cuối thành 6 output class theo category thời trang.
-3. Train trên dataset ảnh chia theo thư mục category.
-4. Lưu trọng số vào `models/fashion_resnet50.pth`.
-5. Khi tạo index, bỏ classifier head và dùng phần backbone để sinh embedding 2048 chiều cho từng ảnh.
+```text
+POST /api/search-image
+POST /api/orders
+```
 
-Từ phiên bản này, hệ thống không còn phân loại giới tính (gender style) mà thay vào đó lưu thuộc tính màu sắc (color) cho từng sản phẩm trong metadata. Điều này giúp việc tìm kiếm và ranking sản phẩm theo màu sắc trực quan và thực tế hơn với nhu cầu người dùng thời trang.
+### 2. Inventory Flow - Admin Dashboard
 
-## Vì Sao Chọn ResNet50
+URL:
 
-- Đủ mạnh cho trích xuất đặc trưng hình ảnh thời trang nhưng vẫn chạy được trong demo local.
-- Có backbone pre-trained ổn định, dễ fine-tune với dataset vừa và nhỏ.
-- Embedding 2048 chiều phù hợp với FAISS để tìm kiếm nhanh.
-- Dễ debug hơn các kiến trúc lớn hơn như ViT/CLIP khi mục tiêu demo là category + visual similarity trong catalog nội bộ.
+```text
+http://127.0.0.1:8000/admin/inventory
+```
+
+Trang này gồm:
+
+- `Order History`: hiển thị đơn hàng vừa tạo từ Storefront.
+- `Inventory Ledger`: hiển thị danh sách SKU, ATP và reserved quantity.
+
+Khi bấm `Order Now` ở Storefront, bảng inventory sẽ tự refresh và số lượng ATP giảm đi 1.
+
+API liên quan:
+
+```text
+GET /api/orders
+GET /api/inventory
+```
+
+### 3. Procurement Flow & Exception Handling
+
+URL:
+
+```text
+http://127.0.0.1:8000/admin/procurement
+```
+
+Các bước demo:
+
+1. Upload ảnh sản phẩm để tìm nguồn hàng supplier.
+2. Backend trả về danh sách sản phẩm tương tự.
+3. Top 1 luôn được hardcode `ATP = 0` và hiển thị `Out of Stock` màu đỏ.
+4. Nút order của Top 1 bị ẩn.
+5. Top 2, Top 3, Top 4 được highlight bằng nhãn `Suggested Alternatives`.
+
+API liên quan:
+
+```text
+POST /api/procurement/search-image
+```
+
+## Mô Hình AI
+
+Hệ thống dùng ResNet50 đã fine-tune cho 6 nhóm sản phẩm:
+
+```text
+Dress, Hat, Outerwear, Pant, Shirt, Shoes
+```
+
+Luồng xử lý ảnh:
+
+1. Ảnh upload được validate định dạng và giới hạn dung lượng 12MB.
+2. Ảnh được resize/normalize theo cấu hình train.
+3. Classifier dự đoán category sản phẩm.
+4. Feature extractor sinh embedding 2048 chiều.
+5. FAISS tìm các ảnh gần nhất trong `models/vector_db.index`.
+6. Backend tính thêm màu sắc, texture và style key để ranking thực tế hơn.
+7. Kết quả trả về kèm match score và ATP.
 
 ## Cấu Trúc Thư Mục
 
 ```text
-WEB DEMO ERP/
-├── models/                     # Chứa file mô hình và index AI
-│   ├── fashion_resnet50.pth    # Trọng số mô hình ResNet50
-│   ├── vector_db.index         # Danh bạ vector AI (FAISS)
-│   └── product_ids.npy         # Mapping ID sản phẩm
-├── datasets/                   # Kho dữ liệu ERP
-│   ├── Dress/, Shirt/, ...     # Thư mục ảnh theo phân loại
-│   └── products.csv            # Metadata sản phẩm (ID, Name, Price...)
-├── static/                     # Tài nguyên tĩnh
-│   ├── css/style.css           # Giao diện Lumina Design
-│   └── uploads/                # Lưu trữ ảnh user search tạm thời
-├── templates/                  # Giao diện HTML (Jinja2)
-│   ├── index.html              # Trang chủ & AI Search
-│   └── products.html           # Trang kết quả tìm kiếm
-├── database.py                 # Xử lý truy vấn CSV
-├── model_utils.py              # Cấu hình PyTorch Model
-├── load_dataset.py             # Script tạo Index AI (Run first)
-├── main.py                     # Server Backend FastAPI
-└── requirements.txt            # Danh sách thư viện cần cài đặt
+web demo ERP/
+├── datasets/
+│   ├── Dress/, Hat/, Outerwear/, Pant/, Shirt/, Shoes/
+│   └── products.csv
+├── models/
+│   ├── fashion_resnet50.pth
+│   ├── vector_db.index
+│   └── product_ids.npy
+├── static/
+│   ├── css/style.css
+│   └── uploads/
+├── templates/
+│   ├── index.html
+│   ├── products.html
+│   ├── admin_inventory.html
+│   ├── admin_login.html
+│   └── admin_procurement.html
+├── database.py
+├── load_dataset.py
+├── main.py
+├── model_utils.py
+└── requirements.txt
 ```
 
-## Cài Đặt Và Chạy
+## Cài Đặt
 
 Yêu cầu Python 3.9 trở lên.
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+```powershell
+py -m venv .venv
+.\.venv\Scripts\activate
+py -m pip install -r requirements.txt
 ```
 
-Nếu thiếu thư viện AI:
+Nếu không dùng virtualenv, có thể cài trực tiếp bằng:
 
-```bash
-pip install torch torchvision faiss-cpu
+```powershell
+py -m pip install -r requirements.txt
 ```
 
-Tạo lại FAISS index sau khi thay dataset:
+## Chạy Server
 
-```bash
-python load_dataset.py
-```
+Chạy ở port mặc định `8000`:
 
-Chạy server:
-
-```bash
+```powershell
 py -m uvicorn main:app --reload
 ```
 
-Truy cập: http://127.0.0.1:8000
+Hoặc chạy port khác nếu `8000` đang bận:
+
+```powershell
+py -m uvicorn main:app --reload --port 8001
+```
+
+Truy cập:
+
+```text
+http://127.0.0.1:8000
+```
+
+Nếu dùng port `8001`:
+
+```text
+http://127.0.0.1:8001
+```
+
+## Tạo Lại FAISS Index
+
+Chạy lệnh này khi thay đổi dataset ảnh hoặc metadata:
+
+```powershell
+py load_dataset.py
+```
+
+Các file index được tạo/làm mới trong thư mục `models/`:
+
+```text
+models/vector_db.index
+models/product_ids.npy
+```
+
+## API Chính
+
+```text
+GET  /
+GET  /products
+GET  /admin/login
+POST /admin/login
+GET  /admin/logout
+GET  /admin/inventory
+GET  /admin/procurement
+POST /api/search-image
+POST /api/orders
+GET  /api/orders
+GET  /api/inventory
+POST /api/procurement/search-image
+```
+
+Tạo order demo:
+
+```json
+POST /api/orders
+{
+  "product_id": "SP001",
+  "quantity": 1
+}
+```
+
+## Lưu Ý Demo
+
+- Order và inventory reservation đang lưu in-memory để phục vụ demo. Khi restart server, order history và ATP reservation sẽ reset.
+- Metadata sản phẩm vẫn đọc từ `datasets/products.csv`.
+- Ảnh upload được lưu tạm trong `static/uploads/`.
+- Nếu gặp lỗi port bị chiếm, dùng port khác hoặc dừng process đang giữ port.
+
+Kiểm tra port trên Windows:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8000
+Stop-Process -Id <OwningProcess> -Force
+```
 
 ## Test Case Đã Xử Lý
 
-- Ảnh có trong dataset: kết quả đúng được ưu tiên top 1, match tối đa 99%.
-- Ảnh quần áo ngoài dataset: tìm sản phẩm cùng vibe/category thay vì yêu cầu match tuyệt đối.
-- Ảnh bị mờ/resize: vẫn dùng shape, color, texture để ranking.
-- Ảnh không phải thời trang: match bị hạ thấp khi confidence thấp và khoảng cách FAISS cao.
-- File `.txt`, `.pdf` hoặc định dạng không hỗ trợ: trả lỗi `Định dạng file không hỗ trợ`.
-- `products.csv` rỗng: giao diện hiển thị `No products found`, không trắng trang.
+- Upload ảnh đúng định dạng: trả về sản phẩm tương tự.
+- File không phải ảnh hoặc sai định dạng: trả lỗi validate.
+- Ảnh vượt quá 12MB: bị từ chối.
+- Ảnh ngoài domain thời trang: trả thông báo không tìm thấy sản phẩm phù hợp.
+- Tạo order thành công: ATP giảm 1 và order xuất hiện trong admin inventory.
+- Procurement Top 1 hết hàng: ẩn nút order và gợi ý alternatives.
 
 ---
 
-_Project Name: Lumina Fashion ERP Search System_
-
-_Author: Vo Anh Hao, Irvine_
+Project: Lumina Fashion ERP Search System

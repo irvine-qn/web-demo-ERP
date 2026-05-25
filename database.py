@@ -3,8 +3,6 @@ import pandas as pd
 PRODUCTS_CSV = "datasets/products.csv"
 
 
-
-
 def _format_product(row):
     image_path = str(row["image_path"]).replace("\\", "/")
     name = row["name"]
